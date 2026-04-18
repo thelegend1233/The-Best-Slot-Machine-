@@ -1,5 +1,7 @@
 // Norminton Casino — slot machine
-// Build step 2: reel strips defined; Spin randomizes displayed symbols.
+// Build step 3: basic L-to-R payline evaluation. Wins log to console.
+// Wilds / scatters are not yet special — they evaluate as their own symbol.
+// Step 7 will introduce wild substitution and scatter anywhere-pays.
 
 // Single place where emoji art is mapped to symbol names. Swap emojis for real
 // art later without hunting through the codebase.
@@ -17,11 +19,9 @@ const SYMBOLS = {
 };
 
 // CONFIG — tune game feel from one place.
-// Reel strips are weighted: low-value symbols appear more often than high-value
-// ones so the game can target ~95% RTP. Exact weights will be tuned in step 13
-// (Monte Carlo). Each reel is intentionally a little different so the same
-// symbol pattern doesn't repeat column-to-column.
 const CONFIG = {
+  // Weighted reels: low-value symbols appear more often than high-value ones
+  // so the game can target ~95% RTP. Exact weights get tuned in step 13.
   reels: [
     // reel 0
     [
@@ -64,7 +64,41 @@ const CONFIG = {
       "leaf","mushroom","acorn",
     ],
   ],
+
+  // 10 paylines using the common row-index pattern. Each entry is a list of
+  // row indices per reel (0 = top row, 1 = middle, 2 = bottom).
+  // Lines 1-3: straight rows. 4-5: V and inverted V. 6-10: zigzags.
+  paylines: [
+    [1, 1, 1, 1, 1], // 1: middle row
+    [0, 0, 0, 0, 0], // 2: top row
+    [2, 2, 2, 2, 2], // 3: bottom row
+    [0, 1, 2, 1, 0], // 4: V
+    [2, 1, 0, 1, 2], // 5: inverted V
+    [0, 0, 1, 2, 2], // 6: down-step
+    [2, 2, 1, 0, 0], // 7: up-step
+    [1, 0, 0, 0, 1], // 8: small arch
+    [1, 2, 2, 2, 1], // 9: small dip
+    [0, 1, 0, 1, 0], // 10: zigzag top
+  ],
+
+  // Paytable: multiplier of line bet for 3, 4, 5 of a kind.
+  // High symbols pay big but are rare; low symbols pay small but hit often.
+  // Scatter entry is "anywhere-pays" multiplier of TOTAL bet (used in step 7).
+  // Wild has no entry — it substitutes for other symbols (also step 7).
+  paytable: {
+    wolf:     [20, 100, 500],
+    bear:     [15,  60, 300],
+    deer:     [10,  40, 150],
+    fox:      [ 5,  20,  75],
+    rabbit:   [ 3,  10,  40],
+    mushroom: [ 2,   8,  25],
+    acorn:    [ 1,   5,  15],
+    leaf:     [ 1,   4,  10],
+    scatter:  [ 2,  10,  50], // paid on total bet, not line bet
+  },
 };
+
+// ---------- Reel spinning ----------
 
 // Pick a random starting index on a reel strip and return the three consecutive
 // symbols that would be visible (top, middle, bottom). Wraps around the strip.
@@ -83,6 +117,57 @@ function spinAllReels() {
   return CONFIG.reels.map(spinReel);
 }
 
+// ---------- Payline evaluation (basic, step 3) ----------
+
+// Evaluate a single payline left-to-right. Returns a win object if the leading
+// symbol hits 3+ in a row and has a paytable entry, otherwise null.
+// Step 3 does NOT substitute wilds or treat scatters specially — that's step 7.
+function evaluatePayline(grid, payline, lineBet, lineNumber) {
+  const symbolsOnLine = payline.map((row, reel) => grid[reel][row]);
+  const leadSymbol = symbolsOnLine[0];
+
+  let runLength = 1;
+  for (let reel = 1; reel < symbolsOnLine.length; reel++) {
+    if (symbolsOnLine[reel] === leadSymbol) runLength++;
+    else break;
+  }
+
+  if (runLength < 3) return null;
+
+  const paytableEntry = CONFIG.paytable[leadSymbol];
+  // Scatters aren't paid on paylines (anywhere-pays comes in step 7), and
+  // wilds have no direct paytable entry.
+  if (!paytableEntry || leadSymbol === "scatter") return null;
+
+  const multiplier = paytableEntry[runLength - 3];
+  const winAmount = lineBet * multiplier;
+
+  return {
+    line: lineNumber,
+    symbol: leadSymbol,
+    count: runLength,
+    win: winAmount,
+  };
+}
+
+// Evaluate all active paylines on the grid and return total win + a breakdown.
+function evaluateSpin(grid, lineBet, activeLines) {
+  const hits = [];
+  let totalWin = 0;
+
+  for (let i = 0; i < activeLines; i++) {
+    const hit = evaluatePayline(grid, CONFIG.paylines[i], lineBet, i + 1);
+    if (hit) {
+      hits.push(hit);
+      totalWin += hit.win;
+    }
+  }
+
+  return { totalWin, hits };
+}
+
+// ---------- Rendering ----------
+
 function renderGrid(grid) {
   const reels = document.querySelectorAll(".reel");
   reels.forEach((reelEl, reelIndex) => {
@@ -94,12 +179,25 @@ function renderGrid(grid) {
   });
 }
 
+// ---------- Wire-up ----------
+
 document.addEventListener("DOMContentLoaded", () => {
-  // Show an initial random grid so the machine doesn't look blank on load.
+  // Default betting values for step 3. Real UI controls land in step 4.
+  const lineBet = 1;
+  const activeLines = 10;
+
   renderGrid(spinAllReels());
 
   const spinButton = document.getElementById("spin-button");
   spinButton.addEventListener("click", () => {
-    renderGrid(spinAllReels());
+    const grid = spinAllReels();
+    renderGrid(grid);
+
+    const result = evaluateSpin(grid, lineBet, activeLines);
+    if (result.totalWin > 0) {
+      console.log(`Win: ${result.totalWin} credits`, result.hits);
+    } else {
+      console.log("No win");
+    }
   });
 });
