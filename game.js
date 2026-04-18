@@ -107,6 +107,8 @@ const CONFIG = {
   spinBaseDurationMs: 700,     // reel 0 spins this long
   spinStaggerMs: 150,          // each later reel spins this much longer
   spinPaddingSymbols: 20,      // random symbols shown before the landing 3
+  spinOvershootPx: 10,         // how far past rest the reel briefly drops
+  spinBounceBackMs: 140,       // time for the reel to settle back from overshoot
 };
 
 // ---------- Game state ----------
@@ -232,9 +234,12 @@ function skipActiveSpin() {
   skips.forEach((fn) => fn());
 }
 
-// Animate all 5 reels. Each reel is swapped for a long strip, which slides up
-// until the last 3 symbols (the target) are visible, then snaps back to a
-// normal 3-cell reel. Reels stop in cascade so the player sees them land L→R.
+// Animate all 5 reels. Each reel is swapped for a long strip; the strip starts
+// with its bottom (padding) visible and slides DOWN so the target symbols at
+// the top appear — new symbols enter from the top, old ones drop off the
+// bottom. Reels stop in cascade. The stop has a two-phase settle: first a
+// smooth decel to just past rest (overshoot), then a short bounce back,
+// giving a subtle "hit the stop" feel.
 function animateReels(targetGrid) {
   return new Promise((resolve) => {
     const reelEls = Array.from(document.querySelectorAll(".reel"));
@@ -244,16 +249,18 @@ function animateReels(targetGrid) {
       const targetSymbols = targetGrid[reelIndex];
       const reelStrip = CONFIG.reels[reelIndex];
 
-      // Build a strip: lots of random symbols, then the 3 target symbols at
-      // the bottom. The random lead-in gives the animation travel distance.
-      const stripSymbols = [];
+      // Strip layout: [buffer] [target0] [target1] [target2] [padding × N].
+      // The buffer above the targets gives overshoot somewhere to land.
+      // The padding below is what's visible while the reel is spinning.
+      const randomSymbol = () =>
+        reelStrip[Math.floor(Math.random() * reelStrip.length)];
+      const stripSymbols = [randomSymbol(), ...targetSymbols];
       for (let i = 0; i < CONFIG.spinPaddingSymbols; i++) {
-        stripSymbols.push(reelStrip[Math.floor(Math.random() * reelStrip.length)]);
+        stripSymbols.push(randomSymbol());
       }
-      stripSymbols.push(...targetSymbols);
 
-      // Lock the reel's height while we swap in the longer strip, so the grid
-      // layout doesn't jump during the animation.
+      // Lock the reel's height while the longer strip is swapped in so the
+      // surrounding grid doesn't jump.
       const lockedHeight = reelEl.getBoundingClientRect().height;
       reelEl.style.height = lockedHeight + "px";
 
@@ -268,35 +275,65 @@ function animateReels(targetGrid) {
       }
       reelEl.appendChild(strip);
 
-      const duration = CONFIG.spinBaseDurationMs + reelIndex * CONFIG.spinStaggerMs;
+      const spinDuration = CONFIG.spinBaseDurationMs + reelIndex * CONFIG.spinStaggerMs;
 
       let finished = false;
+      let phase = 1;
+
       const finish = () => {
         if (finished) return;
         finished = true;
-        strip.removeEventListener("transitionend", finish);
+        strip.removeEventListener("transitionend", onTransitionEnd);
         renderStaticReel(reelEl, targetSymbols);
         reelEl.style.height = "";
         remaining--;
         if (remaining === 0) resolve();
       };
 
-      strip.addEventListener("transitionend", finish);
+      // Phase 1 lands at overshoot; phase 2 bounces back; then finish.
+      function onTransitionEnd(event) {
+        if (event.propertyName !== "transform") return;
+        if (phase === 1) {
+          phase = 2;
+          strip.style.transition = `transform ${CONFIG.spinBounceBackMs}ms cubic-bezier(0.33, 1, 0.68, 1)`;
+          strip.style.transform = `translateY(${restY}px)`;
+        } else {
+          finish();
+        }
+      }
+      strip.addEventListener("transitionend", onTransitionEnd);
 
-      // Skip handler: jump straight to the resolved state.
       activeSkips.push(() => {
         strip.style.transition = "none";
         finish();
       });
 
-      // Let the browser lay out the long strip, then trigger the transition.
+      // Measure after layout so cell/gap sizes are real, then kick off phase 1.
+      // `restY` is captured in the closure for phase 2.
+      let restY = 0;
       requestAnimationFrame(() => {
         const stripHeight = strip.getBoundingClientRect().height;
-        const reelInnerHeight = reelEl.clientHeight - 12; // minus 6px padding top+bottom
-        const targetY = -(stripHeight - reelInnerHeight);
+        const reelInnerHeight = reelEl.clientHeight - 12; // minus 6px padding on both sides
+        const cellCount = stripSymbols.length;
+        const gapPx = 10;
+        const cellHeight = (stripHeight - gapPx * (cellCount - 1)) / cellCount;
+        const stride = cellHeight + gapPx;
 
-        strip.style.transition = `transform ${duration}ms cubic-bezier(0.18, 0.72, 0.24, 0.99)`;
-        strip.style.transform = `translateY(${targetY}px)`;
+        // Start: padding visible at the bottom of the strip.
+        const startY = -(stripHeight - reelInnerHeight);
+        // Rest: target symbols occupy the visible window. Buffer is at strip
+        // index 0, so shifting by one stride puts target0 at the top.
+        restY = -stride;
+        const overshootY = restY + CONFIG.spinOvershootPx;
+
+        // Place the strip at its start position without animating.
+        strip.style.transition = "none";
+        strip.style.transform = `translateY(${startY}px)`;
+        // Force a reflow so the next transform actually triggers a transition.
+        void strip.offsetHeight;
+
+        strip.style.transition = `transform ${spinDuration}ms cubic-bezier(0.12, 0.72, 0.32, 1)`;
+        strip.style.transform = `translateY(${overshootY}px)`;
       });
     });
   });
