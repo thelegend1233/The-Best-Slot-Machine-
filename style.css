@@ -1,4 +1,26 @@
-/* Base */
+/* Norminton Casino — modern dark theme.
+   Palette: deep navy background, soft gold accent, subtle emerald highlight. */
+
+:root {
+  --bg-0: #0a0d1a;
+  --bg-1: #121730;
+  --panel: rgba(22, 28, 54, 0.72);
+  --panel-border: rgba(255, 255, 255, 0.06);
+  --text: #eef1fb;
+  --text-dim: #9aa3c7;
+  --accent: #f0c674;
+  --accent-soft: #f7dea1;
+  --accent-deep: #a87d2b;
+  --emerald: #3ddc97;
+  --tile: #f4f2ea;
+  --tile-ink: #1a1f3a;
+  --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.55);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --radius-sm: 10px;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -7,49 +29,93 @@ html, body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  background: linear-gradient(160deg, #1b2d24 0%, #0c1713 100%);
-  color: #f2ecd6;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--text);
+  background: var(--bg-0);
+  /* Layered radial glow on a dark base — adds depth without an image. */
+  background-image:
+    radial-gradient(1200px 600px at 15% -10%, rgba(240, 198, 116, 0.10), transparent 60%),
+    radial-gradient(900px 500px at 110% 10%, rgba(61, 220, 151, 0.08), transparent 60%),
+    linear-gradient(180deg, var(--bg-0) 0%, var(--bg-1) 100%);
+  -webkit-font-smoothing: antialiased;
 }
 
 .machine {
-  max-width: 640px;
+  max-width: 680px;
   margin: 0 auto;
-  padding: 24px 16px 48px;
+  padding: 32px 20px 64px;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  gap: 28px;
+}
+
+/* Brand header */
+.brand {
+  display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 14px;
+}
+
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  font-weight: 800;
+  font-size: 1.2rem;
+  color: var(--tile-ink);
+  background: linear-gradient(135deg, var(--accent-soft) 0%, var(--accent) 60%, var(--accent-deep) 100%);
+  box-shadow: 0 6px 16px rgba(240, 198, 116, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  letter-spacing: -0.02em;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .title {
   margin: 0;
-  font-size: 2rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #f5d77a;
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
 }
 
-/* Grid: 5 reels, each holds 3 cells stacked vertically. */
+.tagline {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* Grid panel — glassy card */
 .grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
-  width: 100%;
-  padding: 12px;
-  background: #2a3d32;
-  border: 4px solid #f5d77a;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  gap: 10px;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 
 .reel {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  background: #12201a;
-  border-radius: 8px;
+  gap: 10px;
+  padding: 6px;
+  background: rgba(8, 11, 24, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
@@ -58,38 +124,58 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f8f1dd;
-  color: #12201a;
+  background: linear-gradient(180deg, #ffffff 0%, var(--tile) 100%);
+  color: var(--tile-ink);
   font-size: clamp(1.8rem, 8vw, 3rem);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   user-select: none;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.04), 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
 /* Controls */
 .controls {
   display: flex;
   justify-content: center;
-  width: 100%;
 }
 
 .spin-button {
-  min-height: 52px;
-  min-width: 140px;
-  padding: 12px 32px;
-  font-size: 1.1rem;
+  min-height: 56px;
+  min-width: 180px;
+  padding: 14px 40px;
+  font-family: inherit;
+  font-size: 1rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #1b2d24;
-  background: linear-gradient(180deg, #f5d77a 0%, #d9a93b 100%);
-  border: none;
+  color: var(--tile-ink);
+  background: linear-gradient(180deg, var(--accent-soft) 0%, var(--accent) 55%, var(--accent-deep) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 999px;
   cursor: pointer;
-  box-shadow: 0 4px 0 #8a6a1f, 0 6px 12px rgba(0, 0, 0, 0.3);
-  transition: transform 0.05s ease-out, box-shadow 0.05s ease-out;
+  box-shadow:
+    0 10px 24px rgba(240, 198, 116, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.15);
+  transition: transform 0.08s ease-out, box-shadow 0.2s ease-out, filter 0.2s ease-out;
+}
+
+.spin-button:hover {
+  filter: brightness(1.04);
+  box-shadow:
+    0 14px 30px rgba(240, 198, 116, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.15);
 }
 
 .spin-button:active {
-  transform: translateY(2px);
-  box-shadow: 0 2px 0 #8a6a1f, 0 3px 6px rgba(0, 0, 0, 0.3);
+  transform: translateY(1px);
+  box-shadow:
+    0 6px 14px rgba(240, 198, 116, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+}
+
+.spin-button:focus-visible {
+  outline: 2px solid var(--emerald);
+  outline-offset: 3px;
 }
