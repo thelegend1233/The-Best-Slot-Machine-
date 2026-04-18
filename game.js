@@ -255,6 +255,8 @@ function renderStaticReel(reelEl, symbols) {
   for (const symbolName of symbols) {
     const cell = document.createElement("div");
     cell.className = "cell";
+    // Wilds get a distinct tile so they're instantly recognizable.
+    if (symbolName === "wild") cell.classList.add("cell-wild");
     cell.textContent = SYMBOLS[symbolName];
     reelEl.appendChild(cell);
   }
@@ -316,6 +318,7 @@ function animateReels(targetGrid) {
       for (const symbolName of stripSymbols) {
         const cell = document.createElement("div");
         cell.className = "cell";
+        if (symbolName === "wild") cell.classList.add("cell-wild");
         cell.textContent = SYMBOLS[symbolName];
         strip.appendChild(cell);
       }
