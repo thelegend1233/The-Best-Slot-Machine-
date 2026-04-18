@@ -1,7 +1,6 @@
 // Norminton Casino — slot machine
-// Build step 6: winning tiles pulse and paylines are drawn over the grid.
-// Wilds / scatters are not yet special — they evaluate as their own symbol.
-// Step 7 will introduce wild substitution and scatter anywhere-pays.
+// Build step 7: wilds substitute for regular symbols, scatters pay anywhere
+// (and flag the bonus round for step 11). See Claude.md for the full spec.
 
 // Single place where emoji art is mapped to symbol names. Swap emojis for real
 // art later without hunting through the codebase.
@@ -159,38 +158,65 @@ function spinAllReels() {
 
 // ---------- Payline evaluation (basic, step 3) ----------
 
-// Evaluate a single payline left-to-right. Returns a win object if the leading
-// symbol hits 3+ in a row and has a paytable entry, otherwise null.
-// Step 3 does NOT substitute wilds or treat scatters specially — that's step 7.
+// Evaluate a single payline left-to-right. Wilds substitute for any regular
+// symbol; scatters never match on a line. A pure run of leading wilds pays as
+// wolf (the highest-paying symbol). Returns a win object or null.
 function evaluatePayline(grid, payline, lineBet, lineNumber) {
-  const symbolsOnLine = payline.map((row, reel) => grid[reel][row]);
-  const leadSymbol = symbolsOnLine[0];
+  const lineSymbols = payline.map((row, reel) => grid[reel][row]);
 
-  let runLength = 1;
-  for (let reel = 1; reel < symbolsOnLine.length; reel++) {
-    if (symbolsOnLine[reel] === leadSymbol) runLength++;
-    else break;
+  // Find the "base" symbol — the first non-wild, non-scatter symbol in the
+  // line. A scatter in the lead halts the search (scatter never participates
+  // in line wins). If every leading position is wild, baseSymbol stays null
+  // and the run pays as wolf.
+  let baseSymbol = null;
+  for (const s of lineSymbols) {
+    if (s === "scatter") break;
+    if (s === "wild") continue;
+    baseSymbol = s;
+    break;
+  }
+
+  // Count the run from the left: wild is always in the run; baseSymbol
+  // extends it; anything else (including scatter) breaks it.
+  let runLength = 0;
+  for (const s of lineSymbols) {
+    if (s === "wild") { runLength++; continue; }
+    if (baseSymbol !== null && s === baseSymbol) { runLength++; continue; }
+    break;
   }
 
   if (runLength < 3) return null;
 
-  const paytableEntry = CONFIG.paytable[leadSymbol];
-  // Scatters aren't paid on paylines (anywhere-pays comes in step 7), and
-  // wilds have no direct paytable entry.
-  if (!paytableEntry || leadSymbol === "scatter") return null;
+  // All-wild line: pay as the highest symbol (wolf). Spec: "Wilds pay as the
+  // highest symbol they complete."
+  const paySymbol = baseSymbol ?? "wolf";
+  const paytableEntry = CONFIG.paytable[paySymbol];
+  if (!paytableEntry) return null;
 
   const multiplier = paytableEntry[runLength - 3];
-  const winAmount = lineBet * multiplier;
-
   return {
     line: lineNumber,
-    symbol: leadSymbol,
+    symbol: paySymbol,
     count: runLength,
-    win: winAmount,
+    win: lineBet * multiplier,
   };
 }
 
-// Evaluate all active paylines on the grid and return total win + a breakdown.
+// Locate every scatter symbol on the grid. Scatters pay from anywhere, not on
+// a payline, so we need their positions independent of the paylines.
+function findScatterCells(grid) {
+  const cells = [];
+  for (let reel = 0; reel < grid.length; reel++) {
+    for (let row = 0; row < grid[reel].length; row++) {
+      if (grid[reel][row] === "scatter") cells.push([reel, row]);
+    }
+  }
+  return cells;
+}
+
+// Evaluate every active payline plus the scatter anywhere-pay. Returns total
+// win, per-line hits, scatter metadata, and whether the bonus was triggered
+// (bonus round itself lands in step 11).
 function evaluateSpin(grid, lineBet, activeLines) {
   const hits = [];
   let totalWin = 0;
@@ -203,7 +229,21 @@ function evaluateSpin(grid, lineBet, activeLines) {
     }
   }
 
-  return { totalWin, hits };
+  const scatterCells = findScatterCells(grid);
+  const scatterCount = scatterCells.length;
+  let scatterWin = 0;
+  let bonusTriggered = false;
+
+  if (scatterCount >= 3) {
+    const totalBet = lineBet * activeLines;
+    // Cap at the 5-of-a-kind payout even if more than 5 scatters land.
+    const index = Math.min(scatterCount, 5) - 3;
+    scatterWin = totalBet * CONFIG.paytable.scatter[index];
+    totalWin += scatterWin;
+    bonusTriggered = true;
+  }
+
+  return { totalWin, hits, scatterCells, scatterCount, scatterWin, bonusTriggered };
 }
 
 // ---------- Rendering ----------
@@ -374,16 +414,17 @@ function cellElement(reelIndex, rowIndex) {
 }
 
 // For each winning payline, highlight the contributing cells and draw a
-// colored line through them. Lines are absolutely positioned SVG polylines
-// that stroke-dashoffset-animate into view.
-function drawWinningLines(hits) {
+// colored line through them. Scatter hits also light up their cells but don't
+// get a polyline — scatters aren't on a payline.
+function drawWinningLines(result) {
   const overlay = document.getElementById("paylines-overlay");
-  if (!hits.length) return;
+  const hasAnyHighlight = result.hits.length > 0 || result.scatterCount >= 3;
+  if (!hasAnyHighlight) return;
 
   const overlayRect = overlay.getBoundingClientRect();
   overlay.setAttribute("viewBox", `0 0 ${overlayRect.width} ${overlayRect.height}`);
 
-  hits.forEach((hit) => {
+  result.hits.forEach((hit) => {
     const payline = CONFIG.paylines[hit.line - 1];
     const color = PAYLINE_COLORS[(hit.line - 1) % PAYLINE_COLORS.length];
 
@@ -409,6 +450,12 @@ function drawWinningLines(hits) {
     const length = line.getTotalLength();
     line.style.setProperty("--dash-length", length);
   });
+
+  if (result.scatterCount >= 3) {
+    for (const [reel, row] of result.scatterCells) {
+      cellElement(reel, row).classList.add("cell-win");
+    }
+  }
 }
 
 // ---------- UI updates ----------
@@ -475,11 +522,19 @@ async function performSpin() {
   updateUI();
 
   if (result.totalWin > 0) {
-    console.log(`Win: ${formatCredits(result.totalWin)} credits`, result.hits);
-    drawWinningLines(result.hits);
+    console.log(
+      `Win: ${formatCredits(result.totalWin)} credits`,
+      { hits: result.hits, scatters: result.scatterCount, scatterWin: result.scatterWin },
+    );
+    drawWinningLines(result);
     pulseWinDisplay();
   } else {
     console.log("No win");
+  }
+
+  // Bonus detection is ready here; the actual free-spins round is step 11.
+  if (result.bonusTriggered) {
+    console.log(`Bonus triggered! ${result.scatterCount} scatters — free spins land in step 11.`);
   }
 }
 
