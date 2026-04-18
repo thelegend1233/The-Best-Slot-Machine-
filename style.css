@@ -139,13 +139,15 @@ html, body {
   pointer-events: none;
 }
 
-/* Payline overlay — absolutely positioned lines drawn after a win. */
+/* Payline overlay — lines drawn between winning cells. Sits BEHIND the
+   cells (z-index: 1) so it only peeks through the gaps between them, like a
+   classic slot machine win line. */
 .paylines-overlay {
   position: absolute;
   inset: 0;
   pointer-events: none;
   overflow: visible;
-  z-index: 3;
+  z-index: 1;
 }
 
 .payline-draw {
@@ -193,34 +195,22 @@ html, body {
   font-size: clamp(1.8rem, 8vw, 3rem);
   border-radius: var(--radius-sm);
   user-select: none;
+  position: relative;
+  z-index: 2; /* sit above the payline overlay so lines pass behind cells */
   box-shadow:
     inset 0 0 0 1px rgba(0, 0, 0, 0.05),
     inset 0 -2px 0 rgba(0, 0, 0, 0.08),
     0 2px 6px rgba(0, 0, 0, 0.35);
-  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+  transition: box-shadow 0.2s ease-out;
 }
 
+/* Winning cell: solid bright highlight, no pulsing. */
 .cell-win {
-  animation: cell-win-pulse 0.85s ease-in-out infinite;
-  position: relative;
-  z-index: 2;
-}
-
-@keyframes cell-win-pulse {
-  0%, 100% {
-    transform: scale(1);
-    box-shadow:
-      inset 0 0 0 1px rgba(0, 0, 0, 0.05),
-      inset 0 -2px 0 rgba(0, 0, 0, 0.08),
-      0 2px 6px rgba(0, 0, 0, 0.35);
-  }
-  50% {
-    transform: scale(1.08);
-    box-shadow:
-      inset 0 0 0 2px var(--accent),
-      0 0 26px rgba(242, 197, 106, 0.85),
-      0 4px 10px rgba(0, 0, 0, 0.4);
-  }
+  background: linear-gradient(180deg, #ffffff 0%, #fff1c9 100%);
+  box-shadow:
+    inset 0 0 0 2px var(--accent),
+    0 0 22px rgba(242, 197, 106, 0.75),
+    0 4px 10px rgba(0, 0, 0, 0.45);
 }
 
 /* Stats row — balance + last win */
