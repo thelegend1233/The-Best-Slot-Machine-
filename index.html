@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Norminton Casino</title>
-  <link rel="stylesheet" href="style.css?v=3" />
+  <link rel="stylesheet" href="style.css?v=4" />
 </head>
 <body>
   <main class="machine">
@@ -42,6 +42,42 @@
         <div class="cell"></div>
         <div class="cell"></div>
         <div class="cell"></div>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <span class="stat-label">Balance</span>
+        <span class="stat-value" id="balance">0.00</span>
+      </div>
+      <div class="stat stat-win">
+        <span class="stat-label">Win</span>
+        <span class="stat-value" id="win">0.00</span>
+      </div>
+    </div>
+
+    <div class="bet-controls">
+      <div class="bet-group">
+        <span class="bet-label">Line Bet</span>
+        <div class="stepper">
+          <button class="stepper-btn" data-action="bet-down" type="button" aria-label="Decrease line bet">−</button>
+          <span class="stepper-value" id="line-bet">0.00</span>
+          <button class="stepper-btn" data-action="bet-up" type="button" aria-label="Increase line bet">+</button>
+        </div>
+      </div>
+
+      <div class="bet-group">
+        <span class="bet-label">Lines</span>
+        <div class="stepper">
+          <button class="stepper-btn" data-action="lines-down" type="button" aria-label="Decrease active lines">−</button>
+          <span class="stepper-value" id="active-lines">0</span>
+          <button class="stepper-btn" data-action="lines-up" type="button" aria-label="Increase active lines">+</button>
+        </div>
+      </div>
+
+      <div class="bet-group bet-total">
+        <span class="bet-label">Total Bet</span>
+        <span class="bet-total-value" id="total-bet">0.00</span>
       </div>
     </div>
 

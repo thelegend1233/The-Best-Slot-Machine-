@@ -1,5 +1,5 @@
 // Norminton Casino — slot machine
-// Build step 3: basic L-to-R payline evaluation. Wins log to console.
+// Build step 4: win amount and balance shown in UI; bet controls work.
 // Wilds / scatters are not yet special — they evaluate as their own symbol.
 // Step 7 will introduce wild substitution and scatter anywhere-pays.
 
@@ -96,7 +96,34 @@ const CONFIG = {
     leaf:     [ 1,   4,  10],
     scatter:  [ 2,  10,  50], // paid on total bet, not line bet
   },
+
+  // Betting options
+  lineBetOptions: [0.25, 0.5, 1, 2, 5],
+  minLines: 1,
+  maxLines: 10,
+  startingBalance: 1000,
 };
+
+// ---------- Game state ----------
+
+const state = {
+  balance: CONFIG.startingBalance,
+  lineBetIndex: 2,   // index into CONFIG.lineBetOptions → 1.00
+  activeLines: 10,
+  lastWin: 0,
+};
+
+function currentLineBet() {
+  return CONFIG.lineBetOptions[state.lineBetIndex];
+}
+
+function currentTotalBet() {
+  return currentLineBet() * state.activeLines;
+}
+
+function formatCredits(amount) {
+  return amount.toFixed(2);
+}
 
 // ---------- Reel spinning ----------
 
@@ -179,25 +206,76 @@ function renderGrid(grid) {
   });
 }
 
+// ---------- UI updates ----------
+
+function updateUI() {
+  document.getElementById("balance").textContent = formatCredits(state.balance);
+  document.getElementById("win").textContent = formatCredits(state.lastWin);
+  document.getElementById("line-bet").textContent = formatCredits(currentLineBet());
+  document.getElementById("active-lines").textContent = state.activeLines;
+  document.getElementById("total-bet").textContent = formatCredits(currentTotalBet());
+
+  // Disable spin when the player can't afford the current total bet.
+  const spinButton = document.getElementById("spin-button");
+  spinButton.disabled = state.balance < currentTotalBet();
+
+  // Disable stepper extremes so the player can't push past bounds.
+  document.querySelector('[data-action="bet-down"]').disabled =
+    state.lineBetIndex <= 0;
+  document.querySelector('[data-action="bet-up"]').disabled =
+    state.lineBetIndex >= CONFIG.lineBetOptions.length - 1;
+  document.querySelector('[data-action="lines-down"]').disabled =
+    state.activeLines <= CONFIG.minLines;
+  document.querySelector('[data-action="lines-up"]').disabled =
+    state.activeLines >= CONFIG.maxLines;
+}
+
+function handleStepper(action) {
+  if (action === "bet-up" && state.lineBetIndex < CONFIG.lineBetOptions.length - 1) {
+    state.lineBetIndex++;
+  } else if (action === "bet-down" && state.lineBetIndex > 0) {
+    state.lineBetIndex--;
+  } else if (action === "lines-up" && state.activeLines < CONFIG.maxLines) {
+    state.activeLines++;
+  } else if (action === "lines-down" && state.activeLines > CONFIG.minLines) {
+    state.activeLines--;
+  }
+  updateUI();
+}
+
+function performSpin() {
+  const bet = currentTotalBet();
+  if (state.balance < bet) return;
+
+  state.balance -= bet;
+  state.lastWin = 0;
+  updateUI();
+
+  const grid = spinAllReels();
+  renderGrid(grid);
+
+  const result = evaluateSpin(grid, currentLineBet(), state.activeLines);
+  state.lastWin = result.totalWin;
+  state.balance += result.totalWin;
+
+  if (result.totalWin > 0) {
+    console.log(`Win: ${formatCredits(result.totalWin)} credits`, result.hits);
+  } else {
+    console.log("No win");
+  }
+
+  updateUI();
+}
+
 // ---------- Wire-up ----------
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Default betting values for step 3. Real UI controls land in step 4.
-  const lineBet = 1;
-  const activeLines = 10;
-
   renderGrid(spinAllReels());
+  updateUI();
 
-  const spinButton = document.getElementById("spin-button");
-  spinButton.addEventListener("click", () => {
-    const grid = spinAllReels();
-    renderGrid(grid);
+  document.getElementById("spin-button").addEventListener("click", performSpin);
 
-    const result = evaluateSpin(grid, lineBet, activeLines);
-    if (result.totalWin > 0) {
-      console.log(`Win: ${result.totalWin} credits`, result.hits);
-    } else {
-      console.log("No win");
-    }
+  document.querySelectorAll(".stepper-btn").forEach((btn) => {
+    btn.addEventListener("click", () => handleStepper(btn.dataset.action));
   });
 });
