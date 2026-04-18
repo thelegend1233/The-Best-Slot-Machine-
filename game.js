@@ -1,5 +1,5 @@
 // Norminton Casino — slot machine
-// Build step 4: win amount and balance shown in UI; bet controls work.
+// Build step 5: reel spin animation with cascading stop.
 // Wilds / scatters are not yet special — they evaluate as their own symbol.
 // Step 7 will introduce wild substitution and scatter anywhere-pays.
 
@@ -102,6 +102,11 @@ const CONFIG = {
   minLines: 1,
   maxLines: 10,
   startingBalance: 1000,
+
+  // Animation tuning
+  spinBaseDurationMs: 700,     // reel 0 spins this long
+  spinStaggerMs: 150,          // each later reel spins this much longer
+  spinPaddingSymbols: 20,      // random symbols shown before the landing 3
 };
 
 // ---------- Game state ----------
@@ -195,13 +200,104 @@ function evaluateSpin(grid, lineBet, activeLines) {
 
 // ---------- Rendering ----------
 
+// Replace a reel's contents with 3 static cells showing the given symbols.
+// This is the "at-rest" shape used both at page load and after a spin settles.
+function renderStaticReel(reelEl, symbols) {
+  reelEl.innerHTML = "";
+  for (const symbolName of symbols) {
+    const cell = document.createElement("div");
+    cell.className = "cell";
+    cell.textContent = SYMBOLS[symbolName];
+    reelEl.appendChild(cell);
+  }
+}
+
 function renderGrid(grid) {
   const reels = document.querySelectorAll(".reel");
   reels.forEach((reelEl, reelIndex) => {
-    const cells = reelEl.querySelectorAll(".cell");
-    cells.forEach((cellEl, rowIndex) => {
-      const symbolName = grid[reelIndex][rowIndex];
-      cellEl.textContent = SYMBOLS[symbolName];
+    renderStaticReel(reelEl, grid[reelIndex]);
+  });
+}
+
+// ---------- Spin animation ----------
+
+// Track animation state so we can (a) ignore duplicate spin requests mid-spin
+// and (b) let a second tap skip the animation to the final result.
+let spinInProgress = false;
+let activeSkips = [];
+
+function skipActiveSpin() {
+  const skips = activeSkips;
+  activeSkips = [];
+  skips.forEach((fn) => fn());
+}
+
+// Animate all 5 reels. Each reel is swapped for a long strip, which slides up
+// until the last 3 symbols (the target) are visible, then snaps back to a
+// normal 3-cell reel. Reels stop in cascade so the player sees them land L→R.
+function animateReels(targetGrid) {
+  return new Promise((resolve) => {
+    const reelEls = Array.from(document.querySelectorAll(".reel"));
+    let remaining = reelEls.length;
+
+    reelEls.forEach((reelEl, reelIndex) => {
+      const targetSymbols = targetGrid[reelIndex];
+      const reelStrip = CONFIG.reels[reelIndex];
+
+      // Build a strip: lots of random symbols, then the 3 target symbols at
+      // the bottom. The random lead-in gives the animation travel distance.
+      const stripSymbols = [];
+      for (let i = 0; i < CONFIG.spinPaddingSymbols; i++) {
+        stripSymbols.push(reelStrip[Math.floor(Math.random() * reelStrip.length)]);
+      }
+      stripSymbols.push(...targetSymbols);
+
+      // Lock the reel's height while we swap in the longer strip, so the grid
+      // layout doesn't jump during the animation.
+      const lockedHeight = reelEl.getBoundingClientRect().height;
+      reelEl.style.height = lockedHeight + "px";
+
+      reelEl.innerHTML = "";
+      const strip = document.createElement("div");
+      strip.className = "strip";
+      for (const symbolName of stripSymbols) {
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        cell.textContent = SYMBOLS[symbolName];
+        strip.appendChild(cell);
+      }
+      reelEl.appendChild(strip);
+
+      const duration = CONFIG.spinBaseDurationMs + reelIndex * CONFIG.spinStaggerMs;
+
+      let finished = false;
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        strip.removeEventListener("transitionend", finish);
+        renderStaticReel(reelEl, targetSymbols);
+        reelEl.style.height = "";
+        remaining--;
+        if (remaining === 0) resolve();
+      };
+
+      strip.addEventListener("transitionend", finish);
+
+      // Skip handler: jump straight to the resolved state.
+      activeSkips.push(() => {
+        strip.style.transition = "none";
+        finish();
+      });
+
+      // Let the browser lay out the long strip, then trigger the transition.
+      requestAnimationFrame(() => {
+        const stripHeight = strip.getBoundingClientRect().height;
+        const reelInnerHeight = reelEl.clientHeight - 12; // minus 6px padding top+bottom
+        const targetY = -(stripHeight - reelInnerHeight);
+
+        strip.style.transition = `transform ${duration}ms cubic-bezier(0.18, 0.72, 0.24, 0.99)`;
+        strip.style.transform = `translateY(${targetY}px)`;
+      });
     });
   });
 }
@@ -216,8 +312,9 @@ function updateUI() {
   document.getElementById("total-bet").textContent = formatCredits(currentTotalBet());
 
   // Disable spin when the player can't afford the current total bet.
+  // Stays enabled during a spin so a second tap can skip the animation.
   const spinButton = document.getElementById("spin-button");
-  spinButton.disabled = state.balance < currentTotalBet();
+  spinButton.disabled = !spinInProgress && state.balance < currentTotalBet();
 
   // Disable stepper extremes so the player can't push past bounds.
   document.querySelector('[data-action="bet-down"]').disabled =
@@ -243,7 +340,9 @@ function handleStepper(action) {
   updateUI();
 }
 
-function performSpin() {
+async function performSpin() {
+  if (spinInProgress) return;
+
   const bet = currentTotalBet();
   if (state.balance < bet) return;
 
@@ -251,10 +350,15 @@ function performSpin() {
   state.lastWin = 0;
   updateUI();
 
+  // Decide the outcome before the animation so evaluation and display stay
+  // in sync even if the animation is skipped.
   const grid = spinAllReels();
-  renderGrid(grid);
-
   const result = evaluateSpin(grid, currentLineBet(), state.activeLines);
+
+  spinInProgress = true;
+  await animateReels(grid);
+  spinInProgress = false;
+
   state.lastWin = result.totalWin;
   state.balance += result.totalWin;
 
@@ -267,13 +371,22 @@ function performSpin() {
   updateUI();
 }
 
+// A tap mid-spin skips the animation; otherwise starts a new spin.
+function handleSpinClick() {
+  if (spinInProgress) {
+    skipActiveSpin();
+    return;
+  }
+  performSpin();
+}
+
 // ---------- Wire-up ----------
 
 document.addEventListener("DOMContentLoaded", () => {
   renderGrid(spinAllReels());
   updateUI();
 
-  document.getElementById("spin-button").addEventListener("click", performSpin);
+  document.getElementById("spin-button").addEventListener("click", handleSpinClick);
 
   document.querySelectorAll(".stepper-btn").forEach((btn) => {
     btn.addEventListener("click", () => handleStepper(btn.dataset.action));

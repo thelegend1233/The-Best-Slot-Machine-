@@ -150,6 +150,14 @@ html, body {
   overflow: hidden;
 }
 
+/* Spin animation strip — swapped in during a spin and removed afterward. */
+.strip {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  will-change: transform;
+}
+
 .cell {
   aspect-ratio: 1 / 1;
   display: flex;
