@@ -1,5 +1,5 @@
 // Norminton Casino — slot machine
-// Build step 5: reel spin animation with cascading stop.
+// Build step 6: winning tiles pulse and paylines are drawn over the grid.
 // Wilds / scatters are not yet special — they evaluate as their own symbol.
 // Step 7 will introduce wild substitution and scatter anywhere-pays.
 
@@ -107,9 +107,15 @@ const CONFIG = {
   spinBaseDurationMs: 700,     // reel 0 spins this long
   spinStaggerMs: 150,          // each later reel spins this much longer
   spinPaddingSymbols: 20,      // random symbols shown before the landing 3
-  spinOvershootPx: 10,         // how far past rest the reel briefly drops
-  spinBounceBackMs: 140,       // time for the reel to settle back from overshoot
+  spinOvershootPx: 6,          // how far past rest the reel briefly drops
+  spinBounceBackMs: 200,       // time for the reel to settle back from overshoot
 };
+
+// Distinct colors per payline so overlapping wins stay legible.
+const PAYLINE_COLORS = [
+  "#f2c56a", "#ff6b78", "#8bd1ff", "#76e5b1", "#c58eff",
+  "#ffaa66", "#ffd966", "#ff9aa2", "#9eebff", "#d4ff82",
+];
 
 // ---------- Game state ----------
 
@@ -291,11 +297,13 @@ function animateReels(targetGrid) {
       };
 
       // Phase 1 lands at overshoot; phase 2 bounces back; then finish.
+      // Phase 2 uses a symmetric ease-in-out so velocity is zero at both ends:
+      // no sudden direction change, no jerk at the seam.
       function onTransitionEnd(event) {
         if (event.propertyName !== "transform") return;
         if (phase === 1) {
           phase = 2;
-          strip.style.transition = `transform ${CONFIG.spinBounceBackMs}ms cubic-bezier(0.33, 1, 0.68, 1)`;
+          strip.style.transition = `transform ${CONFIG.spinBounceBackMs}ms cubic-bezier(0.45, 0, 0.55, 1)`;
           strip.style.transform = `translateY(${restY}px)`;
         } else {
           finish();
@@ -336,6 +344,70 @@ function animateReels(targetGrid) {
         strip.style.transform = `translateY(${overshootY}px)`;
       });
     });
+  });
+}
+
+// ---------- Win highlight (cells + payline overlay) ----------
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+function clearWinHighlights() {
+  const overlay = document.getElementById("paylines-overlay");
+  overlay.innerHTML = "";
+  document.querySelectorAll(".cell.cell-win").forEach((el) => {
+    el.classList.remove("cell-win");
+  });
+  document.querySelector(".stat-win").classList.remove("pulse");
+}
+
+function pulseWinDisplay() {
+  const statWin = document.querySelector(".stat-win");
+  // Restart the CSS animation by toggling the class.
+  statWin.classList.remove("pulse");
+  void statWin.offsetWidth;
+  statWin.classList.add("pulse");
+}
+
+function cellElement(reelIndex, rowIndex) {
+  const reel = document.querySelectorAll(".reel")[reelIndex];
+  return reel.querySelectorAll(".cell")[rowIndex];
+}
+
+// For each winning payline, highlight the contributing cells and draw a
+// colored line through them. Lines are absolutely positioned SVG polylines
+// that stroke-dashoffset-animate into view.
+function drawWinningLines(hits) {
+  const overlay = document.getElementById("paylines-overlay");
+  if (!hits.length) return;
+
+  const overlayRect = overlay.getBoundingClientRect();
+  overlay.setAttribute("viewBox", `0 0 ${overlayRect.width} ${overlayRect.height}`);
+
+  hits.forEach((hit) => {
+    const payline = CONFIG.paylines[hit.line - 1];
+    const color = PAYLINE_COLORS[(hit.line - 1) % PAYLINE_COLORS.length];
+
+    // Only draw through reels that actually matched (count columns from left).
+    const points = [];
+    for (let reel = 0; reel < hit.count; reel++) {
+      const cell = cellElement(reel, payline[reel]);
+      cell.classList.add("cell-win");
+      const rect = cell.getBoundingClientRect();
+      const cx = rect.left - overlayRect.left + rect.width / 2;
+      const cy = rect.top - overlayRect.top + rect.height / 2;
+      points.push(`${cx.toFixed(1)},${cy.toFixed(1)}`);
+    }
+
+    const line = document.createElementNS(SVG_NS, "polyline");
+    line.setAttribute("points", points.join(" "));
+    line.setAttribute("stroke", color);
+    line.setAttribute("color", color); // used by drop-shadow(currentColor)
+    line.classList.add("payline-draw");
+    overlay.appendChild(line);
+
+    // Set dasharray to the actual polyline length so reveal covers it exactly.
+    const length = line.getTotalLength();
+    line.style.setProperty("--dash-length", length);
   });
 }
 
@@ -383,6 +455,8 @@ async function performSpin() {
   const bet = currentTotalBet();
   if (state.balance < bet) return;
 
+  clearWinHighlights();
+
   state.balance -= bet;
   state.lastWin = 0;
   updateUI();
@@ -398,14 +472,15 @@ async function performSpin() {
 
   state.lastWin = result.totalWin;
   state.balance += result.totalWin;
+  updateUI();
 
   if (result.totalWin > 0) {
     console.log(`Win: ${formatCredits(result.totalWin)} credits`, result.hits);
+    drawWinningLines(result.hits);
+    pulseWinDisplay();
   } else {
     console.log("No win");
   }
-
-  updateUI();
 }
 
 // A tap mid-spin skips the animation; otherwise starts a new spin.
