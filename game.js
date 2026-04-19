@@ -151,6 +151,7 @@ const CONFIG = {
 // Single localStorage key per spec — no wrappers, just getItem / setItem.
 const STORAGE_KEY = "slot_balance";
 const HOUSE_STORAGE_KEY = "slot_house_stats";
+const MUTE_STORAGE_KEY = "slot_muted";
 
 function loadBalance() {
   const stored = localStorage.getItem(STORAGE_KEY);
@@ -163,6 +164,69 @@ function loadBalance() {
 
 function saveBalance() {
   localStorage.setItem(STORAGE_KEY, String(state.balance));
+}
+
+// ---------- Audio ----------
+// Howler.js is loaded from a CDN. If the library failed to load (blocked,
+// offline, etc.) every audio call becomes a no-op so the game still plays.
+// Sound files live in /sounds/ — the repo ships an empty folder and a
+// README so the user can drop in their own CC0 clips. Missing files just
+// fail silently inside Howler.
+
+const SOUND_FILES = {
+  reelSpin: "sounds/reel-spin.mp3",
+  win:      "sounds/win.mp3",
+  bigWin:   "sounds/big-win.mp3",
+  bonus:    "sounds/bonus.mp3",
+};
+let sounds = null;
+let audioMuted = localStorage.getItem(MUTE_STORAGE_KEY) === "1";
+
+function initAudio() {
+  if (typeof Howl === "undefined") {
+    console.warn("Howler.js not available — audio disabled.");
+    return;
+  }
+  sounds = {
+    reelSpin: new Howl({ src: [SOUND_FILES.reelSpin], loop: true, volume: 0.4 }),
+    win:      new Howl({ src: [SOUND_FILES.win],                volume: 0.6 }),
+    bigWin:   new Howl({ src: [SOUND_FILES.bigWin],             volume: 0.75 }),
+    bonus:    new Howl({ src: [SOUND_FILES.bonus],              volume: 0.75 }),
+  };
+  // Howler.mute() applies globally, so we flip the whole mixer instead of
+  // tracking per-sound state.
+  Howler.mute(audioMuted);
+}
+
+function playSound(key) {
+  if (!sounds || audioMuted) return;
+  const s = sounds[key];
+  if (s) s.play();
+}
+
+function stopSound(key) {
+  if (!sounds) return;
+  const s = sounds[key];
+  if (s) s.stop();
+}
+
+function setMuted(next) {
+  audioMuted = next;
+  localStorage.setItem(MUTE_STORAGE_KEY, audioMuted ? "1" : "0");
+  if (typeof Howler !== "undefined") Howler.mute(audioMuted);
+  updateMuteButton();
+  // Pulling the plug on the loop immediately feels better than letting it
+  // ride out on mute (especially if the player muted because it was too loud).
+  if (audioMuted) stopSound("reelSpin");
+}
+
+function updateMuteButton() {
+  const btn = document.getElementById("mute-button");
+  if (!btn) return;
+  btn.textContent = audioMuted ? "🔇" : "🔊";
+  btn.classList.toggle("muted", audioMuted);
+  btn.setAttribute("aria-label", audioMuted ? "Unmute audio" : "Mute audio");
+  btn.setAttribute("aria-pressed", audioMuted ? "true" : "false");
 }
 
 // ---------- House ledger (dev view) ----------
@@ -622,7 +686,9 @@ async function performSpin() {
   const winAmount = baseResult.totalWin * multiplier;
 
   spinInProgress = true;
+  playSound("reelSpin");
   await animateReels(grid);
+  stopSound("reelSpin");
   spinInProgress = false;
 
   state.lastWin = winAmount;
@@ -644,7 +710,13 @@ async function performSpin() {
     );
     drawWinHighlights(baseResult);
     pulseWinDisplay();
-    if (isBigWin(winAmount, bet)) runBigWinCelebration();
+    if (isBigWin(winAmount, bet)) {
+      // Big-win fanfare replaces the regular chime so they don't overlap.
+      playSound("bigWin");
+      runBigWinCelebration();
+    } else {
+      playSound("win");
+    }
   } else {
     console.log(isFreeSpin ? "Free spin — no win" : "No win");
   }
@@ -1048,6 +1120,7 @@ function startFreeSpins(spinsAwarded, multiplier) {
   houseStats.bonusesTriggered++;
   saveHouseStats();
   renderHouseStats();
+  playSound("bonus");
 
   const indicator = document.getElementById("bonus-indicator");
   indicator.hidden = false;
@@ -1092,9 +1165,12 @@ document.addEventListener("DOMContentLoaded", () => {
   renderGrid(spinAllReels());
   updateUI();
   setupDevPanel();
+  initAudio();
+  updateMuteButton();
 
   document.getElementById("spin-button").addEventListener("click", handleSpinClick);
   document.getElementById("buy-back-in-button").addEventListener("click", buyBackIn);
+  document.getElementById("mute-button").addEventListener("click", () => setMuted(!audioMuted));
 
   document.querySelectorAll(".stepper-btn").forEach((btn) => {
     btn.addEventListener("click", () => handleStepper(btn.dataset.action));

@@ -4,7 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Norminton Casino</title>
-  <link rel="stylesheet" href="style.css?v=18" />
+  <link rel="stylesheet" href="style.css?v=19" />
+  <!-- Howler.js handles audio playback, cross-browser quirks, and iOS
+       unlock-on-first-touch. Loaded from CDN so there's no build step. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js"></script>
 </head>
 <body>
   <main class="machine">
@@ -104,6 +107,9 @@
     </div>
   </div>
 
+  <!-- Mute button — fixed top-left so it's always reachable on mobile. -->
+  <button type="button" class="mute-button" id="mute-button" aria-label="Mute audio">🔊</button>
+
   <!-- Bonus wheels overlay — shown only when a bonus is triggered. -->
   <div class="wheel-overlay" id="wheel-overlay" hidden aria-hidden="true">
     <div class="wheel-stage">
@@ -133,6 +139,6 @@
     </div>
   </div>
 
-  <script src="game.js?v=22"></script>
+  <script src="game.js?v=23"></script>
 </body>
 </html>
