@@ -93,9 +93,9 @@ const CONFIG = {
   waysCount: 243,
   // Regular (non-wild, non-scatter) symbols evaluated for ways wins.
   paySymbols: ["leaf", "acorn", "mushroom", "rabbit", "fox", "deer", "bear", "wolf"],
-  // Bonus round: triggered by 3+ scatters.
+  // Bonus round: triggered by 3+ scatters. Multiplier grows across the
+  // round — spin k (1-indexed) pays k times base win. Median bonus ~40x bet.
   freeSpinsAwarded: 10,
-  freeSpinsMultiplier: 2,
 
   // Animation tuning
   spinBaseDurationMs: 700,     // reel 0 spins this long
@@ -132,10 +132,12 @@ const state = {
 // Bonus round state. Tracked separately so regular game flow stays readable.
 // No re-trigger in v1: scatters during free spins still pay their scatter
 // multiplier (via the evaluator) but don't add more free spins.
+// `currentMultiplier` is the multiplier that the upcoming free spin will use.
+// It starts at 1 and climbs by 1 after each spin, giving a ×1–×10 ramp.
 const bonus = {
   active: false,
   spinsRemaining: 0,
-  multiplier: CONFIG.freeSpinsMultiplier,
+  currentMultiplier: 1,
   totalWin: 0,
 };
 
@@ -484,6 +486,9 @@ async function performSpin() {
 
   clearWinHighlights();
 
+  // Snapshot the multiplier for *this* free spin before we mutate state.
+  const multiplier = isFreeSpin ? bonus.currentMultiplier : 1;
+
   if (!isFreeSpin) {
     state.balance -= bet;
     saveBalance();
@@ -508,7 +513,6 @@ async function performSpin() {
   }
 
   const baseResult = evaluateSpin(grid, bet);
-  const multiplier = isFreeSpin ? bonus.multiplier : 1;
   const winAmount = baseResult.totalWin * multiplier;
 
   spinInProgress = true;
@@ -520,6 +524,9 @@ async function performSpin() {
   saveBalance();
   if (isFreeSpin) {
     bonus.totalWin += winAmount;
+    // Ramp up for the next free spin. Left at its final value (no clamp)
+    // when the round ends; startFreeSpins resets it next time.
+    bonus.currentMultiplier++;
     updateBonusIndicator();
   }
   updateUI();
@@ -690,14 +697,14 @@ function showBonusBanner(title, sub) {
 function updateBonusIndicator() {
   document.getElementById("bonus-remaining").textContent = bonus.spinsRemaining;
   document.getElementById("bonus-total").textContent = CONFIG.freeSpinsAwarded;
-  document.getElementById("bonus-multiplier").textContent = bonus.multiplier;
+  document.getElementById("bonus-multiplier").textContent = bonus.currentMultiplier;
   document.getElementById("bonus-total-win").textContent = formatCredits(bonus.totalWin);
 }
 
 function startFreeSpins() {
   bonus.active = true;
   bonus.spinsRemaining = CONFIG.freeSpinsAwarded;
-  bonus.multiplier = CONFIG.freeSpinsMultiplier;
+  bonus.currentMultiplier = 1; // first free spin pays x1, then x2, x3, ...
   bonus.totalWin = 0;
 
   const indicator = document.getElementById("bonus-indicator");
@@ -706,7 +713,7 @@ function startFreeSpins() {
 
   showBonusBanner(
     `${CONFIG.freeSpinsAwarded} Free Spins`,
-    `× ${CONFIG.freeSpinsMultiplier} multiplier`,
+    `Multiplier grows × 1 to × ${CONFIG.freeSpinsAwarded}`,
   );
   updateUI();
 }
