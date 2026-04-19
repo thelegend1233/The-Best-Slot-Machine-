@@ -30,19 +30,26 @@ confirm it's fine where you live. Simple guardrails that help:
 
 Nothing in the app itself should imply "licensed gambling."
 
-## Decisions still open
+## Decisions locked
 
-1. **Per-session stake cap.** Fixed buy-in (e.g. everyone starts with
-   $20) or let players top up mid-session?
-2. **Settlement timing.** End-of-session only, or "cash out at any time"
-   with a running net balance?
-3. **Concurrent tables.** One table at a time, or do you want to host
-   multiple rooms in parallel?
-4. **Bet denominations.** Are the 0.25 / 0.5 / 1 / 2 / 5 units dollars,
-   or an abstract chip that maps to a cash value the house sets per
-   table (e.g. 1 chip = $0.10)?
-5. **Who sees what.** Do players see each other's wins live, or only
-   their own + aggregate table activity?
+1. **Buy-ins.** House sets each player's buy-in individually from the
+   dashboard. Top-ups allowed anytime, routed the same way. Every credit
+   is its own line in the ledger.
+2. **Settlement timing.** Cash out anytime after a **5-minute minimum**
+   from a player's join time. Top-ups don't reset the timer. When a
+   player cashes out, their chip balance converts to dollars at that
+   moment and they leave the table; the table keeps running.
+3. **Concurrent tables.** Multiple tables in parallel. Each table gets a
+   short **4-letter uppercase code** (e.g. `WOLF`, `MINT`) that the house
+   hands out. Landing page has a "Join Table" input — paste the code and
+   a display name to sit down. Codes expire when the table closes; no
+   reuse while active.
+4. **Bet denominations.** Real dollars. The existing `0.25 / 0.50 / 1 / 2 / 5`
+   buttons are literal USD amounts. No chip-to-dollar conversion.
+5. **Visibility.** Hybrid. Each player sees only their own grid and
+   balance. Big wins (≥ 50× total bet — same threshold used by the Phase 1
+   celebration) are broadcast to the full table with the player's name.
+   Regular wins stay private.
 
 ## Architecture
 
