@@ -21,11 +21,12 @@ A personal-learning browser slot machine. Generic nature/animal theme. Runs as a
 - Each reel is a strip of 30–40 symbols. Spinning picks a random offset and lands on it.
 - Reel strips are weighted (more low-value symbols, fewer high-value) to hit ~95% RTP.
 
-### Paylines
+### Paylines / ways
 
-- 10 paylines for v1. Standard L-to-R matching. Use the common 10-line pattern (row 1, row 2, row 3, V, inverted V, zigzags).
-- Player can adjust active paylines from 1 to 10 via +/- buttons.
-- Total bet = `lineBet × activeLines`.
+- **243 ways pays** (revised from the original 10-line v1). Any 3+ matching
+  symbols left-to-right, one per column, regardless of row. Wilds substitute.
+- No active-lines stepper. Player picks a single Bet amount per spin.
+- Total bet = `bet` (no multiplier).
 
 ### Symbols
 
@@ -51,9 +52,9 @@ A personal-learning browser slot machine. Generic nature/animal theme. Runs as a
 
 ### Betting
 
-- Adjustable line bet: 0.25, 0.50, 1, 2, 5 credits.
-- Adjustable active lines: 1 to 10.
-- Spin button triggers a spin if balance ≥ total bet.
+- Adjustable bet per spin: 0.25, 0.50, 1, 2, 5 credits.
+- All 243 ways are always active.
+- Spin button triggers a spin if balance ≥ bet.
 
 ### Balance
 

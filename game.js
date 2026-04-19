@@ -1,7 +1,7 @@
 // Norminton Casino — slot machine
-// Build step 10: big-win celebration (screen shake, particle burst, BIG WIN
-// banner). Triggered when the spin's total win is at least 50x the total bet.
-// See Claude.md for the full spec.
+// Mechanic: 243 ways pays. Any 3+ matching symbols left-to-right, one per
+// column, regardless of row. Wilds substitute. Wins highlight every
+// contributing cell; no payline polylines. See Claude.md for the full spec.
 
 // Single place where emoji art is mapped to symbol names. Swap emojis for real
 // art later without hunting through the codebase.
@@ -65,43 +65,30 @@ const CONFIG = {
     ],
   ],
 
-  // 10 paylines using the common row-index pattern. Each entry is a list of
-  // row indices per reel (0 = top row, 1 = middle, 2 = bottom).
-  // Lines 1-3: straight rows. 4-5: V and inverted V. 6-10: zigzags.
-  paylines: [
-    [1, 1, 1, 1, 1], // 1: middle row
-    [0, 0, 0, 0, 0], // 2: top row
-    [2, 2, 2, 2, 2], // 3: bottom row
-    [0, 1, 2, 1, 0], // 4: V
-    [2, 1, 0, 1, 2], // 5: inverted V
-    [0, 0, 1, 2, 2], // 6: down-step
-    [2, 2, 1, 0, 0], // 7: up-step
-    [1, 0, 0, 0, 1], // 8: small arch
-    [1, 2, 2, 2, 1], // 9: small dip
-    [0, 1, 0, 1, 0], // 10: zigzag top
-  ],
-
-  // Paytable: multiplier of line bet for 3, 4, 5 of a kind.
-  // High symbols pay big but are rare; low symbols pay small but hit often.
-  // Scatter entry is "anywhere-pays" multiplier of TOTAL bet (used in step 7).
-  // Wild has no entry — it substitutes for other symbols (also step 7).
+  // Paytable: multiplier of bet for 3 / 4 / 5 of a kind. The 243-ways
+  // evaluator multiplies this by the number of ways (product of per-column
+  // counts), so values are deliberately lower than a typical 10-line
+  // paytable. Step 13 (Monte Carlo) will tune for ~95% RTP.
+  // Scatter entry is "anywhere-pays" multiplier of bet.
+  // Wild has no entry — it substitutes for other symbols.
   paytable: {
-    wolf:     [20, 100, 500],
-    bear:     [15,  60, 300],
-    deer:     [10,  40, 150],
-    fox:      [ 5,  20,  75],
-    rabbit:   [ 3,  10,  40],
-    mushroom: [ 2,   8,  25],
-    acorn:    [ 1,   5,  15],
-    leaf:     [ 1,   4,  10],
-    scatter:  [ 2,  10,  50], // paid on total bet, not line bet
+    wolf:     [10, 50, 200],
+    bear:     [ 8, 30, 120],
+    deer:     [ 5, 20,  75],
+    fox:      [ 3, 12,  40],
+    rabbit:   [ 2,  6,  20],
+    mushroom: [ 1,  4,  12],
+    acorn:    [ 1,  3,   8],
+    leaf:     [ 1,  2,   6],
+    scatter:  [ 4, 20, 100], // paid on bet, anywhere on the grid
   },
 
   // Betting options
-  lineBetOptions: [0.25, 0.5, 1, 2, 5],
-  minLines: 1,
-  maxLines: 10,
+  betOptions: [0.25, 0.5, 1, 2, 5],
   startingBalance: 1000,
+  waysCount: 243,
+  // Regular (non-wild, non-scatter) symbols evaluated for ways wins.
+  paySymbols: ["leaf", "acorn", "mushroom", "rabbit", "fox", "deer", "bear", "wolf"],
 
   // Animation tuning
   spinBaseDurationMs: 700,     // reel 0 spins this long
@@ -110,12 +97,6 @@ const CONFIG = {
   spinOvershootPx: 6,          // how far past rest the reel briefly drops
   spinBounceBackMs: 200,       // time for the reel to settle back from overshoot
 };
-
-// Distinct colors per payline so overlapping wins stay legible.
-const PAYLINE_COLORS = [
-  "#f2c56a", "#ff6b78", "#8bd1ff", "#76e5b1", "#c58eff",
-  "#ffaa66", "#ffd966", "#ff9aa2", "#9eebff", "#d4ff82",
-];
 
 // ---------- Game state ----------
 
@@ -137,17 +118,12 @@ function saveBalance() {
 
 const state = {
   balance: loadBalance(),
-  lineBetIndex: 2,   // index into CONFIG.lineBetOptions → 1.00
-  activeLines: 10,
+  betIndex: 2,   // index into CONFIG.betOptions → 1.00
   lastWin: 0,
 };
 
-function currentLineBet() {
-  return CONFIG.lineBetOptions[state.lineBetIndex];
-}
-
-function currentTotalBet() {
-  return currentLineBet() * state.activeLines;
+function currentBet() {
+  return CONFIG.betOptions[state.betIndex];
 }
 
 function formatCredits(amount) {
@@ -175,52 +151,50 @@ function spinAllReels() {
 
 // ---------- Payline evaluation (basic, step 3) ----------
 
-// Evaluate a single payline left-to-right. Wilds substitute for any regular
-// symbol; scatters never match on a line. A pure run of leading wilds pays as
-// wolf (the highest-paying symbol). Returns a win object or null.
-function evaluatePayline(grid, payline, lineBet, lineNumber) {
-  const lineSymbols = payline.map((row, reel) => grid[reel][row]);
+// 243-ways evaluator. For each paying symbol, find the longest leading run
+// of reels that contain at least one match (the symbol itself or a wild,
+// which substitutes). When the run is 3+ reels long, the win is:
+//   bet × paytable[symbol][run-3] × ways
+// where `ways` is the product of the per-reel match counts. Wilds count
+// toward every paying symbol's match (standard ways-pays behaviour), so a
+// single wild can contribute to multiple symbol wins on the same spin.
+function evaluateWaysForSymbol(grid, symbol, bet) {
+  // Per-reel positions where symbol or wild appears.
+  const matchingRows = grid.map((reelArray) => {
+    const rows = [];
+    for (let row = 0; row < reelArray.length; row++) {
+      const s = reelArray[row];
+      if (s === symbol || s === "wild") rows.push(row);
+    }
+    return rows;
+  });
 
-  // Find the "base" symbol — the first non-wild, non-scatter symbol in the
-  // line. A scatter in the lead halts the search (scatter never participates
-  // in line wins). If every leading position is wild, baseSymbol stays null
-  // and the run pays as wolf.
-  let baseSymbol = null;
-  for (const s of lineSymbols) {
-    if (s === "scatter") break;
-    if (s === "wild") continue;
-    baseSymbol = s;
-    break;
-  }
-
-  // Count the run from the left: wild is always in the run; baseSymbol
-  // extends it; anything else (including scatter) breaks it.
   let runLength = 0;
-  for (const s of lineSymbols) {
-    if (s === "wild") { runLength++; continue; }
-    if (baseSymbol !== null && s === baseSymbol) { runLength++; continue; }
-    break;
+  for (let r = 0; r < matchingRows.length; r++) {
+    if (matchingRows[r].length > 0) runLength++;
+    else break;
   }
 
   if (runLength < 3) return null;
 
-  // All-wild line: pay as the highest symbol (wolf). Spec: "Wilds pay as the
-  // highest symbol they complete."
-  const paySymbol = baseSymbol ?? "wolf";
-  const paytableEntry = CONFIG.paytable[paySymbol];
+  const paytableEntry = CONFIG.paytable[symbol];
   if (!paytableEntry) return null;
 
+  let ways = 1;
+  for (let r = 0; r < runLength; r++) ways *= matchingRows[r].length;
+
   const multiplier = paytableEntry[runLength - 3];
-  return {
-    line: lineNumber,
-    symbol: paySymbol,
-    count: runLength,
-    win: lineBet * multiplier,
-  };
+  const win = bet * multiplier * ways;
+
+  // Cells contributing to the win (used to highlight tiles on a hit).
+  const cells = [];
+  for (let r = 0; r < runLength; r++) {
+    for (const row of matchingRows[r]) cells.push([r, row]);
+  }
+
+  return { symbol, count: runLength, ways, win, cells };
 }
 
-// Locate every scatter symbol on the grid. Scatters pay from anywhere, not on
-// a payline, so we need their positions independent of the paylines.
 function findScatterCells(grid) {
   const cells = [];
   for (let reel = 0; reel < grid.length; reel++) {
@@ -231,15 +205,15 @@ function findScatterCells(grid) {
   return cells;
 }
 
-// Evaluate every active payline plus the scatter anywhere-pay. Returns total
-// win, per-line hits, scatter metadata, and whether the bonus was triggered
-// (bonus round itself lands in step 11).
-function evaluateSpin(grid, lineBet, activeLines) {
+// Evaluate every paying symbol plus the scatter anywhere-pay. Returns total
+// win, per-symbol hits, scatter metadata, and whether the bonus was
+// triggered (free-spins round lands in step 11).
+function evaluateSpin(grid, bet) {
   const hits = [];
   let totalWin = 0;
 
-  for (let i = 0; i < activeLines; i++) {
-    const hit = evaluatePayline(grid, CONFIG.paylines[i], lineBet, i + 1);
+  for (const symbol of CONFIG.paySymbols) {
+    const hit = evaluateWaysForSymbol(grid, symbol, bet);
     if (hit) {
       hits.push(hit);
       totalWin += hit.win;
@@ -252,10 +226,9 @@ function evaluateSpin(grid, lineBet, activeLines) {
   let bonusTriggered = false;
 
   if (scatterCount >= 3) {
-    const totalBet = lineBet * activeLines;
     // Cap at the 5-of-a-kind payout even if more than 5 scatters land.
     const index = Math.min(scatterCount, 5) - 3;
-    scatterWin = totalBet * CONFIG.paytable.scatter[index];
+    scatterWin = bet * CONFIG.paytable.scatter[index];
     totalWin += scatterWin;
     bonusTriggered = true;
   }
@@ -409,11 +382,7 @@ function animateReels(targetGrid) {
 
 // ---------- Win highlight (cells + payline overlay) ----------
 
-const SVG_NS = "http://www.w3.org/2000/svg";
-
 function clearWinHighlights() {
-  const overlay = document.getElementById("paylines-overlay");
-  overlay.innerHTML = "";
   document.querySelectorAll(".cell.cell-win").forEach((el) => {
     el.classList.remove("cell-win");
   });
@@ -433,44 +402,15 @@ function cellElement(reelIndex, rowIndex) {
   return reel.querySelectorAll(".cell")[rowIndex];
 }
 
-// For each winning payline, highlight the contributing cells and draw a
-// colored line through them. Scatter hits also light up their cells but don't
-// get a polyline — scatters aren't on a payline.
-function drawWinningLines(result) {
-  const overlay = document.getElementById("paylines-overlay");
-  const hasAnyHighlight = result.hits.length > 0 || result.scatterCount >= 3;
-  if (!hasAnyHighlight) return;
-
-  const overlayRect = overlay.getBoundingClientRect();
-  overlay.setAttribute("viewBox", `0 0 ${overlayRect.width} ${overlayRect.height}`);
-
-  result.hits.forEach((hit) => {
-    const payline = CONFIG.paylines[hit.line - 1];
-    const color = PAYLINE_COLORS[(hit.line - 1) % PAYLINE_COLORS.length];
-
-    // Only draw through reels that actually matched (count columns from left).
-    const points = [];
-    for (let reel = 0; reel < hit.count; reel++) {
-      const cell = cellElement(reel, payline[reel]);
-      cell.classList.add("cell-win");
-      const rect = cell.getBoundingClientRect();
-      const cx = rect.left - overlayRect.left + rect.width / 2;
-      const cy = rect.top - overlayRect.top + rect.height / 2;
-      points.push(`${cx.toFixed(1)},${cy.toFixed(1)}`);
+// 243 ways doesn't have discrete paylines to draw — instead, every cell
+// that contributed to any symbol win lights up. Scatter cells light up too
+// when the scatter pay triggers.
+function drawWinHighlights(result) {
+  for (const hit of result.hits) {
+    for (const [reel, row] of hit.cells) {
+      cellElement(reel, row).classList.add("cell-win");
     }
-
-    const line = document.createElementNS(SVG_NS, "polyline");
-    line.setAttribute("points", points.join(" "));
-    line.setAttribute("stroke", color);
-    line.setAttribute("color", color); // used by drop-shadow(currentColor)
-    line.classList.add("payline-draw");
-    overlay.appendChild(line);
-
-    // Set dasharray to the actual polyline length so reveal covers it exactly.
-    const length = line.getTotalLength();
-    line.style.setProperty("--dash-length", length);
-  });
-
+  }
   if (result.scatterCount >= 3) {
     for (const [reel, row] of result.scatterCells) {
       cellElement(reel, row).classList.add("cell-win");
@@ -483,35 +423,25 @@ function drawWinningLines(result) {
 function updateUI() {
   document.getElementById("balance").textContent = formatCredits(state.balance);
   document.getElementById("win").textContent = formatCredits(state.lastWin);
-  document.getElementById("line-bet").textContent = formatCredits(currentLineBet());
-  document.getElementById("active-lines").textContent = state.activeLines;
-  document.getElementById("total-bet").textContent = formatCredits(currentTotalBet());
+  document.getElementById("bet").textContent = formatCredits(currentBet());
 
-  // Disable spin when the player can't afford the current total bet.
+  // Disable spin when the player can't afford the current bet.
   // Stays enabled during a spin so a second tap can skip the animation.
   const spinButton = document.getElementById("spin-button");
-  spinButton.disabled = !spinInProgress && state.balance < currentTotalBet();
+  spinButton.disabled = !spinInProgress && state.balance < currentBet();
 
   // Disable stepper extremes so the player can't push past bounds.
   document.querySelector('[data-action="bet-down"]').disabled =
-    state.lineBetIndex <= 0;
+    state.betIndex <= 0;
   document.querySelector('[data-action="bet-up"]').disabled =
-    state.lineBetIndex >= CONFIG.lineBetOptions.length - 1;
-  document.querySelector('[data-action="lines-down"]').disabled =
-    state.activeLines <= CONFIG.minLines;
-  document.querySelector('[data-action="lines-up"]').disabled =
-    state.activeLines >= CONFIG.maxLines;
+    state.betIndex >= CONFIG.betOptions.length - 1;
 }
 
 function handleStepper(action) {
-  if (action === "bet-up" && state.lineBetIndex < CONFIG.lineBetOptions.length - 1) {
-    state.lineBetIndex++;
-  } else if (action === "bet-down" && state.lineBetIndex > 0) {
-    state.lineBetIndex--;
-  } else if (action === "lines-up" && state.activeLines < CONFIG.maxLines) {
-    state.activeLines++;
-  } else if (action === "lines-down" && state.activeLines > CONFIG.minLines) {
-    state.activeLines--;
+  if (action === "bet-up" && state.betIndex < CONFIG.betOptions.length - 1) {
+    state.betIndex++;
+  } else if (action === "bet-down" && state.betIndex > 0) {
+    state.betIndex--;
   }
   updateUI();
 }
@@ -519,7 +449,7 @@ function handleStepper(action) {
 async function performSpin() {
   if (spinInProgress) return;
 
-  const bet = currentTotalBet();
+  const bet = currentBet();
   if (state.balance < bet) return;
 
   clearWinHighlights();
@@ -532,7 +462,7 @@ async function performSpin() {
   // Decide the outcome before the animation so evaluation and display stay
   // in sync even if the animation is skipped.
   const grid = spinAllReels();
-  const result = evaluateSpin(grid, currentLineBet(), state.activeLines);
+  const result = evaluateSpin(grid, bet);
 
   spinInProgress = true;
   await animateReels(grid);
@@ -548,7 +478,7 @@ async function performSpin() {
       `Win: ${formatCredits(result.totalWin)} credits`,
       { hits: result.hits, scatters: result.scatterCount, scatterWin: result.scatterWin },
     );
-    drawWinningLines(result);
+    drawWinHighlights(result);
     pulseWinDisplay();
     if (isBigWin(result.totalWin, bet)) {
       runBigWinCelebration();

@@ -139,35 +139,6 @@ html, body {
   pointer-events: none;
 }
 
-/* Payline overlay — lines drawn between winning cells. Sits BEHIND the
-   cells (z-index: 1) so it only peeks through the gaps between them, like a
-   classic slot machine win line. */
-.paylines-overlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: visible;
-  z-index: 1;
-}
-
-.payline-draw {
-  fill: none;
-  stroke-width: 4.5;
-  /* Flat caps so the line terminates exactly at the endpoint (last cell
-     center) instead of poking out as a rounded semicircle. */
-  stroke-linecap: butt;
-  stroke-linejoin: round;
-  /* Tight glow only — bigger blur radii leak visibly past the final cell. */
-  filter: drop-shadow(0 0 2px currentColor);
-  opacity: 0.95;
-  stroke-dasharray: var(--dash-length, 2000);
-  stroke-dashoffset: var(--dash-length, 2000);
-  animation: payline-reveal 0.5s ease-out forwards;
-}
-
-@keyframes payline-reveal {
-  to { stroke-dashoffset: 0; }
-}
 
 .reel {
   display: flex;
@@ -303,14 +274,6 @@ html, body {
   border-radius: var(--radius-md);
 }
 
-.bet-total {
-  grid-column: 1 / -1;
-  background:
-    linear-gradient(180deg, rgba(200, 16, 46, 0.22) 0%, rgba(110, 10, 26, 0.35) 100%),
-    rgba(16, 4, 6, 0.6);
-  border-color: rgba(242, 197, 106, 0.35);
-}
-
 .bet-label {
   font-size: 0.7rem;
   letter-spacing: 0.22em;
@@ -318,12 +281,15 @@ html, body {
   color: var(--text-dim);
 }
 
-.bet-total-value {
-  font-size: 1.5rem;
+/* "243" — quiet display in place of the old Total Bet card; reminds the
+   player every spin plays all ways without dominating the controls. */
+.ways-value {
+  font-size: 1.6rem;
   font-weight: 800;
   color: var(--accent-soft);
   font-variant-numeric: tabular-nums;
   text-shadow: 0 0 18px rgba(242, 197, 106, 0.35);
+  line-height: 1.2;
 }
 
 .stepper {

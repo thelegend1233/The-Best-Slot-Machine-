@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Norminton Casino</title>
-  <link rel="stylesheet" href="style.css?v=11" />
+  <link rel="stylesheet" href="style.css?v=12" />
 </head>
 <body>
   <main class="machine">
@@ -43,7 +43,6 @@
         <div class="cell"></div>
         <div class="cell"></div>
       </div>
-      <svg class="paylines-overlay" id="paylines-overlay" aria-hidden="true"></svg>
     </div>
 
     <div class="stats">
@@ -59,26 +58,17 @@
 
     <div class="bet-controls">
       <div class="bet-group">
-        <span class="bet-label">Line Bet</span>
+        <span class="bet-label">Bet</span>
         <div class="stepper">
-          <button class="stepper-btn" data-action="bet-down" type="button" aria-label="Decrease line bet">−</button>
-          <span class="stepper-value" id="line-bet">0.00</span>
-          <button class="stepper-btn" data-action="bet-up" type="button" aria-label="Increase line bet">+</button>
+          <button class="stepper-btn" data-action="bet-down" type="button" aria-label="Decrease bet">−</button>
+          <span class="stepper-value" id="bet">0.00</span>
+          <button class="stepper-btn" data-action="bet-up" type="button" aria-label="Increase bet">+</button>
         </div>
       </div>
 
       <div class="bet-group">
-        <span class="bet-label">Lines</span>
-        <div class="stepper">
-          <button class="stepper-btn" data-action="lines-down" type="button" aria-label="Decrease active lines">−</button>
-          <span class="stepper-value" id="active-lines">0</span>
-          <button class="stepper-btn" data-action="lines-up" type="button" aria-label="Increase active lines">+</button>
-        </div>
-      </div>
-
-      <div class="bet-group bet-total">
-        <span class="bet-label">Total Bet</span>
-        <span class="bet-total-value" id="total-bet">0.00</span>
+        <span class="bet-label">Ways</span>
+        <span class="ways-value">243</span>
       </div>
     </div>
 
@@ -95,6 +85,6 @@
     <div class="big-win-banner" id="big-win-banner">BIG WIN</div>
   </div>
 
-  <script src="game.js?v=10"></script>
+  <script src="game.js?v=11"></script>
 </body>
 </html>
