@@ -497,6 +497,16 @@ async function performSpin() {
   // Decide the outcome before the animation so evaluation and display stay
   // in sync even if the animation is skipped.
   const grid = spinAllReels();
+
+  // Dev override: if the admin armed a forced bonus, plant 3 scatters on
+  // the base-game grid. Ignored during free spins so the bonus doesn't
+  // loop on itself.
+  if (forceBonusNext && !isFreeSpin) {
+    forceBonusNext = false;
+    setDevButtonArmed(false);
+    rigGridForBonus(grid);
+  }
+
   const baseResult = evaluateSpin(grid, bet);
   const multiplier = isFreeSpin ? bonus.multiplier : 1;
   const winAmount = baseResult.totalWin * multiplier;
@@ -618,6 +628,48 @@ function clearCelebration() {
   document.querySelector(".machine").classList.remove("shake");
 }
 
+// ---------- Dev tooling ----------
+
+// Set by the dev panel (or the console helper) to guarantee the next spin
+// lands 3 scatters and triggers the bonus. Dev-only, gated behind ?dev=1.
+let forceBonusNext = false;
+
+// Drop 3 scatters into the visible window on three different reels. Any
+// ways wins on the same grid are left alone.
+function rigGridForBonus(grid) {
+  grid[0][1] = "scatter";
+  grid[2][0] = "scatter";
+  grid[4][2] = "scatter";
+}
+
+function setDevButtonArmed(armed) {
+  const btn = document.getElementById("dev-force-bonus");
+  if (!btn) return;
+  btn.textContent = armed ? "Bonus Armed ✓" : "Force Bonus";
+  btn.classList.toggle("armed", armed);
+}
+
+function setupDevPanel() {
+  // Expose a console helper even without the URL flag — easier for anyone
+  // poking around in devtools.
+  window.forceBonus = () => {
+    forceBonusNext = true;
+    setDevButtonArmed(true);
+    console.log("Bonus armed for the next spin.");
+  };
+
+  const hasDevFlag =
+    /[?&]dev=1(&|$)/.test(location.search) || location.hash === "#dev";
+  if (!hasDevFlag) return;
+
+  const panel = document.getElementById("dev-panel");
+  panel.hidden = false;
+  document.getElementById("dev-force-bonus").addEventListener("click", () => {
+    forceBonusNext = !forceBonusNext;
+    setDevButtonArmed(forceBonusNext);
+  });
+}
+
 // ---------- Free-spins bonus round ----------
 
 function showBonusBanner(title, sub) {
@@ -687,6 +739,7 @@ function buyBackIn() {
 document.addEventListener("DOMContentLoaded", () => {
   renderGrid(spinAllReels());
   updateUI();
+  setupDevPanel();
 
   document.getElementById("spin-button").addEventListener("click", handleSpinClick);
   document.getElementById("buy-back-in-button").addEventListener("click", buyBackIn);

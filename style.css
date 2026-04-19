@@ -202,6 +202,42 @@ html, body {
     0 6px 14px rgba(0, 0, 0, 0.5);
 }
 
+/* Dev panel — hidden unless ?dev=1 is present in the URL. Sits in the top
+   corner so it's reachable on mobile without blocking gameplay. */
+.dev-panel[hidden] { display: none; }
+
+.dev-panel {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
+  right: 8px;
+  z-index: 40;
+}
+
+.dev-button {
+  min-height: 32px;
+  padding: 6px 12px;
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 244, 228, 0.7);
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.dev-button:hover { color: #fff; }
+
+.dev-button.armed {
+  color: #0a3322;
+  background: linear-gradient(180deg, #2fb57a, #0e6b44);
+  border-color: rgba(242, 197, 106, 0.6);
+}
+
 /* Bonus indicator — visible during free-spins round. Emerald-tinted to
    match the wild tile and distinguish this state from the normal game. */
 .bonus-indicator[hidden] { display: none; }
