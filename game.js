@@ -65,22 +65,24 @@ const CONFIG = {
     ],
   ],
 
-  // Paytable: multiplier of bet for 3 / 4 / 5 of a kind. Tuned via 2M-spin
-  // Monte Carlo to ~93% RTP with ~23% hit frequency. Low symbols (leaf,
-  // acorn, mushroom) only pay on 4 or 5 of a kind so the game doesn't flood
-  // the player with 1x-bet hits. Leaf is decorative only — it never pays on
-  // its own (still substitutes via wild bridges).
-  // Scatter entry is "anywhere-pays" multiplier of bet.
-  // Wild has no entry — it substitutes for other symbols.
+  // Paytable: multiplier of bet for 3 / 4 / 5 of a kind. Tuned via 3M-spin
+  // Monte Carlo to ~93% RTP with ~34% hit frequency.
+  // - Only wolf and bear pay 3 of a kind (the rare high symbols).
+  // - Every other symbol pays 5 of a kind (and sometimes 4), so every
+  //   symbol on the reel has a path to winning.
+  // - Low symbols (leaf, acorn, mushroom, rabbit) need 5 of a kind because
+  //   ways multiplication amplifies common symbols hard.
+  // Scatter is an "anywhere-pays" multiplier of bet. Wild has no entry —
+  // it substitutes for other symbols.
   paytable: {
-    wolf:     [3, 18, 90],
-    bear:     [2,  9, 35],
-    deer:     [0,  5, 22],
-    fox:      [0,  3, 12],
-    rabbit:   [0,  1,  5],
-    mushroom: [0,  0,  3],
+    wolf:     [3, 18, 70],
+    bear:     [2,  8, 30],
+    deer:     [0,  4, 20],
+    fox:      [0,  3, 11],
+    rabbit:   [0,  0,  3],
+    mushroom: [0,  0,  2],
     acorn:    [0,  0,  1],
-    leaf:     [0,  0,  0],
+    leaf:     [0,  0,  1],
     scatter:  [2, 10, 50], // paid on bet, anywhere on the grid
   },
 
