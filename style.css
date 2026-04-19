@@ -376,7 +376,9 @@ html, body {
 /* Controls */
 .controls {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
   width: 100%;
 }
 
@@ -430,4 +432,32 @@ html, body {
   filter: grayscale(0.7) brightness(0.65);
   cursor: not-allowed;
   box-shadow: none;
+}
+
+/* Secondary action — outline button, always available, doesn't compete
+   with the primary Spin call-to-action. */
+.buy-back-in-button {
+  min-height: 44px;
+  padding: 10px 22px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent-soft);
+  background: transparent;
+  border: 1px solid rgba(242, 197, 106, 0.45);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease-out, border-color 0.15s ease-out, color 0.15s ease-out;
+}
+
+.buy-back-in-button:hover {
+  background: rgba(242, 197, 106, 0.1);
+  border-color: rgba(242, 197, 106, 0.75);
+  color: #fff1c9;
+}
+
+.buy-back-in-button:active {
+  transform: translateY(1px);
 }

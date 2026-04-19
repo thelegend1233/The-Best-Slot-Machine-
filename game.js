@@ -1,6 +1,6 @@
 // Norminton Casino — slot machine
-// Build step 7: wilds substitute for regular symbols, scatters pay anywhere
-// (and flag the bonus round for step 11). See Claude.md for the full spec.
+// Build step 8: balance persists in localStorage and a Buy Back In button
+// resets it to the starting amount. See Claude.md for the full spec.
 
 // Single place where emoji art is mapped to symbol names. Swap emojis for real
 // art later without hunting through the codebase.
@@ -118,8 +118,24 @@ const PAYLINE_COLORS = [
 
 // ---------- Game state ----------
 
+// Single localStorage key per spec — no wrappers, just getItem / setItem.
+const STORAGE_KEY = "slot_balance";
+
+function loadBalance() {
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (stored === null) return CONFIG.startingBalance;
+  const parsed = parseFloat(stored);
+  // Guard against tampered or corrupted values rather than silently breaking.
+  if (!isFinite(parsed) || parsed < 0) return CONFIG.startingBalance;
+  return parsed;
+}
+
+function saveBalance() {
+  localStorage.setItem(STORAGE_KEY, String(state.balance));
+}
+
 const state = {
-  balance: CONFIG.startingBalance,
+  balance: loadBalance(),
   lineBetIndex: 2,   // index into CONFIG.lineBetOptions → 1.00
   activeLines: 10,
   lastWin: 0,
@@ -509,6 +525,7 @@ async function performSpin() {
 
   state.balance -= bet;
   state.lastWin = 0;
+  saveBalance();
   updateUI();
 
   // Decide the outcome before the animation so evaluation and display stay
@@ -522,6 +539,7 @@ async function performSpin() {
 
   state.lastWin = result.totalWin;
   state.balance += result.totalWin;
+  saveBalance();
   updateUI();
 
   if (result.totalWin > 0) {
@@ -550,6 +568,18 @@ function handleSpinClick() {
   performSpin();
 }
 
+// "Buy Back In" — top up the balance to the starting amount. Always available
+// per spec; no confirm dialog (the label is unambiguous and the action is
+// reversible by playing it back down).
+function buyBackIn() {
+  if (spinInProgress) return;
+  state.balance = CONFIG.startingBalance;
+  state.lastWin = 0;
+  saveBalance();
+  clearWinHighlights();
+  updateUI();
+}
+
 // ---------- Wire-up ----------
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -557,6 +587,7 @@ document.addEventListener("DOMContentLoaded", () => {
   updateUI();
 
   document.getElementById("spin-button").addEventListener("click", handleSpinClick);
+  document.getElementById("buy-back-in-button").addEventListener("click", buyBackIn);
 
   document.querySelectorAll(".stepper-btn").forEach((btn) => {
     btn.addEventListener("click", () => handleStepper(btn.dataset.action));
