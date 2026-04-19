@@ -65,22 +65,23 @@ const CONFIG = {
     ],
   ],
 
-  // Paytable: multiplier of bet for 3 / 4 / 5 of a kind. The 243-ways
-  // evaluator multiplies this by the number of ways (product of per-column
-  // counts), so values are deliberately lower than a typical 10-line
-  // paytable. Step 13 (Monte Carlo) will tune for ~95% RTP.
+  // Paytable: multiplier of bet for 3 / 4 / 5 of a kind. Tuned via 2M-spin
+  // Monte Carlo to ~93% RTP with ~23% hit frequency. Low symbols (leaf,
+  // acorn, mushroom) only pay on 4 or 5 of a kind so the game doesn't flood
+  // the player with 1x-bet hits. Leaf is decorative only — it never pays on
+  // its own (still substitutes via wild bridges).
   // Scatter entry is "anywhere-pays" multiplier of bet.
   // Wild has no entry — it substitutes for other symbols.
   paytable: {
-    wolf:     [10, 50, 200],
-    bear:     [ 8, 30, 120],
-    deer:     [ 5, 20,  75],
-    fox:      [ 3, 12,  40],
-    rabbit:   [ 2,  6,  20],
-    mushroom: [ 1,  4,  12],
-    acorn:    [ 1,  3,   8],
-    leaf:     [ 1,  2,   6],
-    scatter:  [ 4, 20, 100], // paid on bet, anywhere on the grid
+    wolf:     [3, 18, 90],
+    bear:     [2,  9, 35],
+    deer:     [0,  5, 22],
+    fox:      [0,  3, 12],
+    rabbit:   [0,  1,  5],
+    mushroom: [0,  0,  3],
+    acorn:    [0,  0,  1],
+    leaf:     [0,  0,  0],
+    scatter:  [2, 10, 50], // paid on bet, anywhere on the grid
   },
 
   // Betting options
@@ -180,10 +181,14 @@ function evaluateWaysForSymbol(grid, symbol, bet) {
   const paytableEntry = CONFIG.paytable[symbol];
   if (!paytableEntry) return null;
 
+  const multiplier = paytableEntry[runLength - 3];
+  // Low symbols pay 0 on some run lengths. Treat zero-multiplier runs as
+  // "no win" so we don't highlight cells without actually paying anything.
+  if (!multiplier) return null;
+
   let ways = 1;
   for (let r = 0; r < runLength; r++) ways *= matchingRows[r].length;
 
-  const multiplier = paytableEntry[runLength - 3];
   const win = bet * multiplier * ways;
 
   // Cells contributing to the win (used to highlight tiles on a hit).
