@@ -517,6 +517,10 @@ function handleStepper(action) {
 async function performSpin() {
   if (spinInProgress) return;
 
+  // Cancel any pending auto-advance — this call takes over.
+  clearTimeout(autoAdvanceTimeoutId);
+  autoAdvanceTimeoutId = null;
+
   const bet = currentBet();
   const isFreeSpin = bonus.active;
 
@@ -589,9 +593,19 @@ async function performSpin() {
     return;
   }
 
-  // Wind down the bonus once all free spins are used.
-  if (isFreeSpin && bonus.spinsRemaining === 0) {
-    setTimeout(endFreeSpins, 900);
+  // Free-spin flow control.
+  if (isFreeSpin) {
+    if (bonus.spinsRemaining === 0) {
+      setTimeout(endFreeSpins, 900);
+    } else {
+      // Auto-advance to the next free spin so the bonus plays itself out.
+      // The player can still tap Spin to skip the pause.
+      clearTimeout(autoAdvanceTimeoutId);
+      autoAdvanceTimeoutId = setTimeout(() => {
+        autoAdvanceTimeoutId = null;
+        if (bonus.active && !spinInProgress) performSpin();
+      }, 1200);
+    }
   }
 }
 
@@ -613,6 +627,7 @@ const BIG_WIN_MULTIPLIER = 50;
 
 let celebrationInProgress = false;
 let celebrationTimeoutId = null;
+let autoAdvanceTimeoutId = null;
 
 function isBigWin(winAmount, totalBet) {
   return totalBet > 0 && winAmount >= totalBet * BIG_WIN_MULTIPLIER;
@@ -748,23 +763,26 @@ function renderWheel(svg, segments) {
     path.setAttribute("class", `${seg.color} wheel-divider`);
     svg.appendChild(path);
 
-    // Label at the midpoint, rotated so it's readable along the slice.
+    // Label sits out near the rim so 12 narrow slices each have room for
+    // the digits. Just the number, no prefix — the wheel title says what
+    // the number means.
     const midDeg = startDeg + sliceAngle / 2;
     const midRad = (midDeg * Math.PI) / 180;
-    const textX = Math.cos(midRad) * radius * 0.62;
-    const textY = Math.sin(midRad) * radius * 0.62;
+    const textX = Math.cos(midRad) * radius * 0.72;
+    const textY = Math.sin(midRad) * radius * 0.72;
     const text = document.createElementNS(SVG_WHEEL_NS, "text");
     text.setAttribute("x", textX.toFixed(2));
     text.setAttribute("y", textY.toFixed(2));
     text.setAttribute("text-anchor", "middle");
-    text.setAttribute("dominant-baseline", "middle");
-    // Rotate the text to sit radially on the slice.
+    text.setAttribute("dominant-baseline", "central");
+    // Rotate each label so it reads radially outward (top-of-digit toward
+    // the rim) — a classic prize-wheel look.
     text.setAttribute(
       "transform",
       `rotate(${(midDeg + 90).toFixed(2)} ${textX.toFixed(2)} ${textY.toFixed(2)})`,
     );
     text.setAttribute("class", "wheel-label");
-    text.textContent = `× ${seg.value}`;
+    text.textContent = String(seg.value);
     svg.appendChild(text);
   });
 
@@ -920,6 +938,9 @@ function endFreeSpins() {
   const totalWon = bonus.totalWin;
   bonus.active = false;
   bonus.spinsRemaining = 0;
+
+  clearTimeout(autoAdvanceTimeoutId);
+  autoAdvanceTimeoutId = null;
 
   document.getElementById("bonus-indicator").hidden = true;
   showBonusBanner("Bonus Win", `${formatCredits(totalWon)} credits`);

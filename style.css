@@ -348,9 +348,10 @@ html, body {
 .wheel-label {
   font-family: "Playfair Display", Georgia, serif;
   font-weight: 900;
-  font-size: 18px;
+  font-size: 16px;
   fill: #1b0609;
   pointer-events: none;
+  letter-spacing: 0.01em;
 }
 
 .wheel-rim {
