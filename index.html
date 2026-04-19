@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Norminton Casino</title>
-  <link rel="stylesheet" href="style.css?v=17" />
+  <link rel="stylesheet" href="style.css?v=18" />
 </head>
 <body>
   <main class="machine">
@@ -121,8 +121,18 @@
        normal play so it never distracts the user. -->
   <div class="dev-panel" id="dev-panel" hidden>
     <button type="button" class="dev-button" id="dev-force-bonus">Force Bonus</button>
+    <div class="house-stats" id="house-stats" aria-live="polite">
+      <div class="house-title">House Ledger</div>
+      <div class="house-row"><span>Wagered</span><span id="hs-wagered">0.00</span></div>
+      <div class="house-row"><span>Paid out</span><span id="hs-won">0.00</span></div>
+      <div class="house-row"><span>Net house</span><span id="hs-net">0.00</span></div>
+      <div class="house-row"><span>RTP</span><span id="hs-rtp">—</span></div>
+      <div class="house-row"><span>Spins</span><span id="hs-spins">0</span></div>
+      <div class="house-row"><span>Bonuses</span><span id="hs-bonuses">0</span></div>
+      <button type="button" class="dev-button dev-button-sm" id="hs-reset">Reset Ledger</button>
+    </div>
   </div>
 
-  <script src="game.js?v=21"></script>
+  <script src="game.js?v=22"></script>
 </body>
 </html>

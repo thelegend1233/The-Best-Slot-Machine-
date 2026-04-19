@@ -388,6 +388,10 @@ html, body {
   top: calc(env(safe-area-inset-top, 0px) + 8px);
   right: 8px;
   z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
 }
 
 .dev-button {
@@ -414,6 +418,62 @@ html, body {
   background: linear-gradient(180deg, #2fb57a, #0e6b44);
   border-color: rgba(242, 197, 106, 0.6);
 }
+
+.dev-button-sm {
+  min-height: 28px;
+  padding: 4px 10px;
+  font-size: 0.62rem;
+  margin-top: 6px;
+  width: 100%;
+}
+
+/* Dev-only house ledger. Shows the cumulative edge from the casino's
+   perspective. Monospaced numbers so columns stay aligned. */
+.house-stats {
+  padding: 10px 12px;
+  min-width: 170px;
+  background: rgba(0, 0, 0, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.72rem;
+  color: rgba(255, 244, 228, 0.85);
+}
+
+.house-title {
+  font-family: inherit;
+  font-size: 0.6rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent-soft);
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.house-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 2px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.house-row span:first-child {
+  color: rgba(255, 244, 228, 0.55);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.house-row span:last-child {
+  font-weight: 600;
+}
+
+#hs-net.positive { color: #8af2b5; }   /* house up */
+#hs-net.negative { color: #ff9aa2; }   /* house down */
 
 /* Bonus indicator — visible during free-spins round. Emerald-tinted to
    match the wild tile and distinguish this state from the normal game. */

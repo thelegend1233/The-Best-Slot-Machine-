@@ -150,6 +150,7 @@ const CONFIG = {
 
 // Single localStorage key per spec — no wrappers, just getItem / setItem.
 const STORAGE_KEY = "slot_balance";
+const HOUSE_STORAGE_KEY = "slot_house_stats";
 
 function loadBalance() {
   const stored = localStorage.getItem(STORAGE_KEY);
@@ -162,6 +163,64 @@ function loadBalance() {
 
 function saveBalance() {
   localStorage.setItem(STORAGE_KEY, String(state.balance));
+}
+
+// ---------- House ledger (dev view) ----------
+// Cumulative totals from the casino's perspective. Tracked always so the
+// dev view can show lifetime stats the moment ?dev=1 is added; shown only
+// when the dev panel is revealed.
+const houseStats = loadHouseStats();
+
+function loadHouseStats() {
+  const stored = localStorage.getItem(HOUSE_STORAGE_KEY);
+  const empty = { wagered: 0, won: 0, spins: 0, bonusesTriggered: 0 };
+  if (!stored) return empty;
+  try {
+    const parsed = JSON.parse(stored);
+    if (parsed && typeof parsed === "object") {
+      return {
+        wagered: Number(parsed.wagered) || 0,
+        won: Number(parsed.won) || 0,
+        spins: Number(parsed.spins) || 0,
+        bonusesTriggered: Number(parsed.bonusesTriggered) || 0,
+      };
+    }
+  } catch { /* fall through to empty */ }
+  return empty;
+}
+
+function saveHouseStats() {
+  localStorage.setItem(HOUSE_STORAGE_KEY, JSON.stringify(houseStats));
+}
+
+function renderHouseStats() {
+  const wageredEl = document.getElementById("hs-wagered");
+  if (!wageredEl) return; // dev panel not rendered
+  const net = houseStats.wagered - houseStats.won;
+  const rtp =
+    houseStats.wagered > 0
+      ? (houseStats.won / houseStats.wagered * 100).toFixed(2) + "%"
+      : "—";
+
+  wageredEl.textContent = formatCredits(houseStats.wagered);
+  document.getElementById("hs-won").textContent = formatCredits(houseStats.won);
+  const netEl = document.getElementById("hs-net");
+  // Leading "+" so the sign is unambiguous when the house is ahead.
+  netEl.textContent = (net >= 0 ? "+" : "") + formatCredits(net);
+  netEl.classList.toggle("positive", net > 0);
+  netEl.classList.toggle("negative", net < 0);
+  document.getElementById("hs-rtp").textContent = rtp;
+  document.getElementById("hs-spins").textContent = houseStats.spins;
+  document.getElementById("hs-bonuses").textContent = houseStats.bonusesTriggered;
+}
+
+function resetHouseStats() {
+  houseStats.wagered = 0;
+  houseStats.won = 0;
+  houseStats.spins = 0;
+  houseStats.bonusesTriggered = 0;
+  saveHouseStats();
+  renderHouseStats();
 }
 
 const state = {
@@ -537,6 +596,8 @@ async function performSpin() {
   if (!isFreeSpin) {
     state.balance -= bet;
     saveBalance();
+    houseStats.wagered += bet;
+    houseStats.spins++;
   } else {
     bonus.spinsRemaining--;
   }
@@ -567,6 +628,9 @@ async function performSpin() {
   state.lastWin = winAmount;
   state.balance += winAmount;
   saveBalance();
+  if (winAmount > 0) houseStats.won += winAmount;
+  saveHouseStats();
+  renderHouseStats();
   if (isFreeSpin) {
     bonus.totalWin += winAmount;
     updateBonusIndicator();
@@ -785,6 +849,8 @@ function setupDevPanel() {
     forceBonusNext = !forceBonusNext;
     setDevButtonArmed(forceBonusNext);
   });
+  document.getElementById("hs-reset").addEventListener("click", resetHouseStats);
+  renderHouseStats();
 }
 
 // ---------- Bonus wheels ----------
@@ -978,6 +1044,10 @@ function startFreeSpins(spinsAwarded, multiplier) {
   bonus.spinsRemaining = spinsAwarded;
   bonus.multiplier = multiplier;
   bonus.totalWin = 0;
+
+  houseStats.bonusesTriggered++;
+  saveHouseStats();
+  renderHouseStats();
 
   const indicator = document.getElementById("bonus-indicator");
   indicator.hidden = false;
