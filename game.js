@@ -96,26 +96,43 @@ const CONFIG = {
   // Bonus round: 3+ scatters trigger two wheels in sequence. Wheel 1 locks
   // in the multiplier for the whole round; wheel 2 locks in the number of
   // free spins. Slices are listed in display order (slice 0 at top, going
-  // clockwise). Palette class picks the slice color from style.css.
+  // clockwise). Every slice is equally likely, so weighting is done by
+  // repeating values: the layouts below spread the jackpot slot (×25 / ×20)
+  // across the wheel so its neighbors are small values and it stays rare.
+  //
+  // Multiplier wheel weights (12 slots):
+  //   ×2: 4/12 (33%)   ×3: 3/12 (25%)   ×5: 2/12 (17%)
+  //   ×10: 2/12 (17%)  ×25: 1/12 (8%)
   multiplierWheel: [
     { value:  2, color: "wheel-slice-a" },
-    { value:  3, color: "wheel-slice-b" },
-    { value:  5, color: "wheel-slice-c" },
+    { value:  5, color: "wheel-slice-b" },
+    { value:  2, color: "wheel-slice-c" },
     { value:  3, color: "wheel-slice-d" },
     { value: 10, color: "wheel-slice-e" },
-    { value:  2, color: "wheel-slice-b" },
-    { value:  5, color: "wheel-slice-a" },
+    { value:  2, color: "wheel-slice-a" },
+    { value:  3, color: "wheel-slice-b" },
     { value: 25, color: "wheel-slice-f" },
+    { value:  2, color: "wheel-slice-c" },
+    { value: 10, color: "wheel-slice-e" },
+    { value:  3, color: "wheel-slice-d" },
+    { value:  5, color: "wheel-slice-b" },
   ],
+  // Free-spins wheel weights (12 slots):
+  //   5:  3/12 (25%)  8:  3/12 (25%)  10: 3/12 (25%)
+  //   15: 2/12 (17%)  20: 1/12 (8%)
   freeSpinsWheel: [
     { value:  5, color: "wheel-slice-a" },
-    { value:  8, color: "wheel-slice-b" },
-    { value: 10, color: "wheel-slice-c" },
-    { value:  8, color: "wheel-slice-d" },
+    { value: 10, color: "wheel-slice-b" },
+    { value:  8, color: "wheel-slice-c" },
+    { value:  5, color: "wheel-slice-d" },
     { value: 15, color: "wheel-slice-e" },
-    { value:  5, color: "wheel-slice-b" },
-    { value: 10, color: "wheel-slice-a" },
+    { value:  8, color: "wheel-slice-a" },
+    { value: 10, color: "wheel-slice-b" },
     { value: 20, color: "wheel-slice-f" },
+    { value:  5, color: "wheel-slice-c" },
+    { value: 10, color: "wheel-slice-d" },
+    { value:  8, color: "wheel-slice-b" },
+    { value: 15, color: "wheel-slice-e" },
   ],
 
   // Animation tuning
