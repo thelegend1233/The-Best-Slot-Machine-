@@ -461,3 +461,86 @@ html, body {
 .buy-back-in-button:active {
   transform: translateY(1px);
 }
+
+/* ----- Big-win celebration ----- */
+
+/* Full-viewport overlay. Pointer-events none so taps still reach Spin —
+   clicking Spin is how the player dismisses the celebration. */
+.celebration {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 30;
+}
+
+/* Particles burst from the middle of the viewport. Container is a
+   zero-size anchor at center; particles translate outward via
+   --dx/--dy custom properties set per particle in JS. */
+.particles {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: 0;
+  height: 0;
+}
+
+.particle {
+  position: absolute;
+  width: var(--size);
+  height: var(--size);
+  margin-left: calc(var(--size) / -2);
+  margin-top: calc(var(--size) / -2);
+  border-radius: 50%;
+  box-shadow: 0 0 10px currentColor;
+  animation: particle-fly 1.3s ease-out forwards;
+}
+
+@keyframes particle-fly {
+  0%   { transform: translate(0, 0) scale(0.2); opacity: 0; }
+  15%  { opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(1); opacity: 0; }
+}
+
+.big-win-banner {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  transform: translate(-50%, -50%) scale(0);
+  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 900;
+  font-size: clamp(3rem, 16vw, 6rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: linear-gradient(180deg, #fff1c9 0%, var(--accent) 50%, var(--accent-deep) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.35)) drop-shadow(0 0 36px rgba(242, 197, 106, 0.75));
+  opacity: 0;
+  pointer-events: none;
+}
+
+.big-win-banner.show {
+  animation: banner-pop 2s cubic-bezier(0.2, 1, 0.3, 1) forwards;
+}
+
+@keyframes banner-pop {
+  0%   { transform: translate(-50%, -50%) scale(0) rotate(-10deg); opacity: 0; }
+  25%  { transform: translate(-50%, -50%) scale(1.15) rotate(2deg); opacity: 1; }
+  45%  { transform: translate(-50%, -50%) scale(1) rotate(0); }
+  80%  { opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1) rotate(0); opacity: 0; }
+}
+
+/* Screen shake applied to the whole machine container during a big win. */
+.machine.shake {
+  animation: machine-shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes machine-shake {
+  10%, 90% { transform: translate3d(-2px, 0, 0); }
+  20%, 80% { transform: translate3d(3px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-5px, 1px, 0); }
+  40%, 60% { transform: translate3d(5px, -1px, 0); }
+}

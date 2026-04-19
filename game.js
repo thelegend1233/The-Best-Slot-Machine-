@@ -1,6 +1,7 @@
 // Norminton Casino — slot machine
-// Build step 8: balance persists in localStorage and a Buy Back In button
-// resets it to the starting amount. See Claude.md for the full spec.
+// Build step 10: big-win celebration (screen shake, particle burst, BIG WIN
+// banner). Triggered when the spin's total win is at least 50x the total bet.
+// See Claude.md for the full spec.
 
 // Single place where emoji art is mapped to symbol names. Swap emojis for real
 // art later without hunting through the codebase.
@@ -549,6 +550,9 @@ async function performSpin() {
     );
     drawWinningLines(result);
     pulseWinDisplay();
+    if (isBigWin(result.totalWin, bet)) {
+      runBigWinCelebration();
+    }
   } else {
     console.log("No win");
   }
@@ -559,13 +563,83 @@ async function performSpin() {
   }
 }
 
-// A tap mid-spin skips the animation; otherwise starts a new spin.
+// A tap mid-spin skips the animation; a tap during the big-win celebration
+// dismisses it; otherwise starts a new spin.
 function handleSpinClick() {
+  if (celebrationInProgress) clearCelebration();
   if (spinInProgress) {
     skipActiveSpin();
     return;
   }
   performSpin();
+}
+
+// ---------- Big-win celebration ----------
+
+// Threshold per spec: a win of at least 50x the total bet is "big".
+const BIG_WIN_MULTIPLIER = 50;
+
+let celebrationInProgress = false;
+let celebrationTimeoutId = null;
+
+function isBigWin(winAmount, totalBet) {
+  return totalBet > 0 && winAmount >= totalBet * BIG_WIN_MULTIPLIER;
+}
+
+// Generate N particles at random angles/distances. Colors stay in the warm
+// gold/amber range so the burst reads as "money" rather than rainbow confetti.
+function spawnParticles(count = 32) {
+  const container = document.getElementById("particles");
+  container.innerHTML = "";
+  for (let i = 0; i < count; i++) {
+    const particle = document.createElement("div");
+    particle.className = "particle";
+    const angle = Math.random() * Math.PI * 2;
+    const distance = 120 + Math.random() * 280;
+    const dx = Math.cos(angle) * distance;
+    const dy = Math.sin(angle) * distance;
+    const size = 6 + Math.random() * 10;
+    const hue = 38 + Math.random() * 18; // gold / amber
+    const lightness = 55 + Math.random() * 15;
+    particle.style.setProperty("--dx", `${dx.toFixed(0)}px`);
+    particle.style.setProperty("--dy", `${dy.toFixed(0)}px`);
+    particle.style.setProperty("--size", `${size.toFixed(1)}px`);
+    particle.style.background = `hsl(${hue}, 95%, ${lightness}%)`;
+    particle.style.color = `hsl(${hue}, 95%, ${lightness}%)`;
+    particle.style.animationDelay = `${Math.floor(Math.random() * 120)}ms`;
+    container.appendChild(particle);
+  }
+}
+
+function runBigWinCelebration() {
+  celebrationInProgress = true;
+
+  document.querySelector(".machine").classList.add("shake");
+  // Shake finishes on its own; strip the class so it can run again later.
+  setTimeout(() => {
+    document.querySelector(".machine").classList.remove("shake");
+  }, 500);
+
+  spawnParticles();
+  const banner = document.getElementById("big-win-banner");
+  banner.classList.remove("show");
+  // Force a reflow so the animation restarts cleanly on back-to-back big wins.
+  void banner.offsetWidth;
+  banner.classList.add("show");
+
+  // Auto-clear slightly after the banner animation ends.
+  clearTimeout(celebrationTimeoutId);
+  celebrationTimeoutId = setTimeout(clearCelebration, 2200);
+}
+
+function clearCelebration() {
+  celebrationInProgress = false;
+  clearTimeout(celebrationTimeoutId);
+  celebrationTimeoutId = null;
+  document.getElementById("particles").innerHTML = "";
+  const banner = document.getElementById("big-win-banner");
+  banner.classList.remove("show");
+  document.querySelector(".machine").classList.remove("shake");
 }
 
 // "Buy Back In" — top up the balance to the starting amount. Always available

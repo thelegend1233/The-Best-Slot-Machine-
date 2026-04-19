@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Norminton Casino</title>
-  <link rel="stylesheet" href="style.css?v=10" />
+  <link rel="stylesheet" href="style.css?v=11" />
 </head>
 <body>
   <main class="machine">
@@ -88,6 +88,13 @@
     </div>
   </main>
 
-  <script src="game.js?v=9"></script>
+  <!-- Full-screen overlay for the big-win celebration. Sits above everything
+       and stays pointer-events: none so taps still reach the Spin button. -->
+  <div class="celebration" aria-hidden="true">
+    <div class="particles" id="particles"></div>
+    <div class="big-win-banner" id="big-win-banner">BIG WIN</div>
+  </div>
+
+  <script src="game.js?v=10"></script>
 </body>
 </html>
