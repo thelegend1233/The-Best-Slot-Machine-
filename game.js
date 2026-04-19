@@ -32,26 +32,26 @@ const CONFIG = {
       "scatter","rabbit","leaf","deer","mushroom","acorn","wolf","leaf",
       "fox","rabbit","leaf",
     ],
-    // reel 1
+    // reel 1 — 2 scatters for a ~1/50 bonus trigger rate
     [
       "acorn","leaf","rabbit","mushroom","acorn","fox","leaf","rabbit",
-      "acorn","deer","mushroom","leaf","wild","acorn","rabbit","fox",
+      "scatter","deer","mushroom","leaf","wild","acorn","rabbit","fox",
       "leaf","mushroom","acorn","bear","rabbit","leaf","fox","mushroom",
       "acorn","scatter","leaf","deer","rabbit","acorn","mushroom","leaf",
       "fox","acorn","rabbit",
     ],
-    // reel 2
+    // reel 2 — 2 scatters
     [
       "mushroom","leaf","acorn","rabbit","leaf","mushroom","fox","acorn",
-      "leaf","rabbit","deer","mushroom","acorn","wild","leaf","rabbit",
+      "scatter","rabbit","deer","mushroom","acorn","wild","leaf","rabbit",
       "fox","mushroom","acorn","leaf","wolf","rabbit","mushroom","leaf",
       "acorn","fox","scatter","leaf","bear","mushroom","rabbit","acorn",
       "leaf","fox","mushroom",
     ],
-    // reel 3
+    // reel 3 — 2 scatters
     [
       "leaf","rabbit","acorn","mushroom","leaf","acorn","fox","rabbit",
-      "leaf","mushroom","acorn","deer","rabbit","leaf","wild","mushroom",
+      "scatter","mushroom","acorn","deer","rabbit","leaf","wild","mushroom",
       "acorn","fox","leaf","rabbit","mushroom","bear","acorn","leaf",
       "fox","rabbit","mushroom","scatter","acorn","leaf","deer","rabbit",
       "mushroom","fox","acorn",
@@ -66,9 +66,9 @@ const CONFIG = {
     ],
   ],
 
-  // Paytable: multiplier of bet for 3 / 4 / 5 of a kind. Tuned via 1.5M-spin
-  // Monte Carlo to hit ~93% *total* RTP including the bonus round
-  // (base ~70%, bonus ~23%).
+  // Paytable: multiplier of bet for 3 / 4 / 5 of a kind. Tuned via 2M-spin
+  // Monte Carlo with the current (denser) scatter reels and the multiplier
+  // wheel to hit ~93% *total* RTP (base ~60%, bonus ~33%).
   // - Only wolf and bear pay 3 of a kind (the rare high symbols).
   // - Every other symbol pays 5 of a kind (and sometimes 4), so every
   //   symbol on the reel has a path to winning.
@@ -77,15 +77,15 @@ const CONFIG = {
   // Scatter is an "anywhere-pays" multiplier of bet. Wild has no entry —
   // it substitutes for other symbols.
   paytable: {
-    wolf:     [2, 11, 40],
-    bear:     [1,  5, 17],
-    deer:     [0,  2, 11],
-    fox:      [0,  2,  6],
+    wolf:     [2,  9, 30],
+    bear:     [1,  4, 12],
+    deer:     [0,  2,  7],
+    fox:      [0,  1,  4],
     rabbit:   [0,  0,  2],
     mushroom: [0,  0,  1],
     acorn:    [0,  0,  1],
     leaf:     [0,  0,  1],
-    scatter:  [1,  5, 25], // paid on bet, anywhere on the grid
+    scatter:  [1,  3, 12], // paid on bet, anywhere on the grid
   },
 
   // Betting options
@@ -101,22 +101,24 @@ const CONFIG = {
   // repeating values: the layouts below spread the jackpot slot (×25 / ×20)
   // across the wheel so its neighbors are small values and it stays rare.
   //
-  // Multiplier wheel weights (12 slots):
-  //   ×2: 4/12 (33%)   ×3: 3/12 (25%)   ×5: 2/12 (17%)
-  //   ×10: 2/12 (17%)  ×25: 1/12 (8%)
+  // Multiplier wheel weights (12 slots). Lower-variance than the previous
+  // jackpot-heavy layout — with bonuses triggering ~1 in 50 spins, a flat
+  // x25 slot pushed RTP far above 93%. The single x10 slot still gives the
+  // player a visible jackpot to hope for.
+  //   ×2: 8/12 (67%)   ×3: 3/12 (25%)   ×10: 1/12 (8%)
   multiplierWheel: [
     { value:  2, color: "wheel-slice-a" },
-    { value:  5, color: "wheel-slice-b" },
-    { value:  2, color: "wheel-slice-c" },
-    { value:  3, color: "wheel-slice-d" },
-    { value: 10, color: "wheel-slice-e" },
-    { value:  2, color: "wheel-slice-a" },
     { value:  3, color: "wheel-slice-b" },
-    { value: 25, color: "wheel-slice-f" },
     { value:  2, color: "wheel-slice-c" },
-    { value: 10, color: "wheel-slice-e" },
-    { value:  3, color: "wheel-slice-d" },
-    { value:  5, color: "wheel-slice-b" },
+    { value:  2, color: "wheel-slice-d" },
+    { value:  3, color: "wheel-slice-e" },
+    { value:  2, color: "wheel-slice-a" },
+    { value:  2, color: "wheel-slice-b" },
+    { value: 10, color: "wheel-slice-f" },
+    { value:  2, color: "wheel-slice-c" },
+    { value:  2, color: "wheel-slice-e" },
+    { value:  2, color: "wheel-slice-d" },
+    { value:  3, color: "wheel-slice-b" },
   ],
   // Free-spins wheel weights (12 slots):
   //   5:  3/12 (25%)  8:  3/12 (25%)  10: 3/12 (25%)
