@@ -66,8 +66,9 @@ const CONFIG = {
     ],
   ],
 
-  // Paytable: multiplier of bet for 3 / 4 / 5 of a kind. Tuned via 3M-spin
-  // Monte Carlo to ~93% RTP with ~34% hit frequency.
+  // Paytable: multiplier of bet for 3 / 4 / 5 of a kind. Tuned via 1.5M-spin
+  // Monte Carlo to hit ~93% *total* RTP including the bonus round
+  // (base ~70%, bonus ~23%).
   // - Only wolf and bear pay 3 of a kind (the rare high symbols).
   // - Every other symbol pays 5 of a kind (and sometimes 4), so every
   //   symbol on the reel has a path to winning.
@@ -76,15 +77,15 @@ const CONFIG = {
   // Scatter is an "anywhere-pays" multiplier of bet. Wild has no entry —
   // it substitutes for other symbols.
   paytable: {
-    wolf:     [3, 18, 70],
-    bear:     [2,  8, 30],
-    deer:     [0,  4, 20],
-    fox:      [0,  3, 11],
-    rabbit:   [0,  0,  3],
-    mushroom: [0,  0,  2],
+    wolf:     [2, 11, 40],
+    bear:     [1,  5, 17],
+    deer:     [0,  2, 11],
+    fox:      [0,  2,  6],
+    rabbit:   [0,  0,  2],
+    mushroom: [0,  0,  1],
     acorn:    [0,  0,  1],
     leaf:     [0,  0,  1],
-    scatter:  [2, 10, 50], // paid on bet, anywhere on the grid
+    scatter:  [1,  5, 25], // paid on bet, anywhere on the grid
   },
 
   // Betting options
@@ -710,14 +711,67 @@ function setDevButtonArmed(armed) {
   btn.classList.toggle("armed", armed);
 }
 
+// Monte Carlo verifier (step 13). Uses the real evaluator + wheels, so any
+// paytable/wheel/reel-strip change is reflected immediately. Safe to run in
+// the browser console via `runMonteCarlo()` or `runMonteCarlo(1_000_000)`.
+// Skips the DOM / animation entirely so it finishes in seconds.
+function runMonteCarlo(totalSpins = 1_000_000) {
+  const bet = 1;
+  const multWheel = CONFIG.multiplierWheel;
+  const spinsWheel = CONFIG.freeSpinsWheel;
+
+  let wagered = 0;
+  let won = 0;
+  let baseWon = 0;
+  let bonusWon = 0;
+  let hits = 0;
+  let triggers = 0;
+
+  const t0 = performance.now();
+  for (let i = 0; i < totalSpins; i++) {
+    wagered += bet;
+    const result = evaluateSpin(spinAllReels(), bet);
+    won += result.totalWin;
+    baseWon += result.totalWin;
+    if (result.totalWin > 0) hits++;
+    if (result.bonusTriggered) {
+      triggers++;
+      const mult = multWheel[Math.floor(Math.random() * multWheel.length)].value;
+      const spins = spinsWheel[Math.floor(Math.random() * spinsWheel.length)].value;
+      for (let k = 0; k < spins; k++) {
+        const w = evaluateSpin(spinAllReels(), bet).totalWin * mult;
+        won += w;
+        bonusWon += w;
+      }
+    }
+  }
+  const elapsed = ((performance.now() - t0) / 1000).toFixed(1);
+
+  const rtp = won / wagered;
+  const baseRTP = baseWon / wagered;
+  const bonusRTP = bonusWon / wagered;
+  const avgBonus = triggers > 0 ? bonusWon / triggers : 0;
+
+  console.log(`Monte Carlo over ${totalSpins.toLocaleString()} spins (${elapsed}s):`);
+  console.log(`  Total RTP:   ${(rtp * 100).toFixed(2)}%  (target ~93%)`);
+  console.log(`  Base RTP:    ${(baseRTP * 100).toFixed(2)}%`);
+  console.log(`  Bonus RTP:   ${(bonusRTP * 100).toFixed(2)}%`);
+  console.log(`  Hit freq:    ${(hits / totalSpins * 100).toFixed(2)}%`);
+  console.log(`  Bonus rate:  ${(triggers / totalSpins * 100).toFixed(3)}%  (≈ 1 in ${triggers > 0 ? Math.round(totalSpins / triggers) : "∞"})`);
+  console.log(`  Avg bonus:   ${avgBonus.toFixed(1)}× bet`);
+
+  return { rtp, baseRTP, bonusRTP, hits, triggers, avgBonus };
+}
+
 function setupDevPanel() {
-  // Expose a console helper even without the URL flag — easier for anyone
+  // Expose console helpers even without the URL flag — easier for anyone
   // poking around in devtools.
   window.forceBonus = () => {
     forceBonusNext = true;
     setDevButtonArmed(true);
     console.log("Bonus armed for the next spin.");
   };
+  window.runMonteCarlo = runMonteCarlo;
 
   const hasDevFlag =
     /[?&]dev=1(&|$)/.test(location.search) || location.hash === "#dev";
