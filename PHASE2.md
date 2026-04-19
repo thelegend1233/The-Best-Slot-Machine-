@@ -168,11 +168,19 @@ ledger_view  -> aggregate of spins per table + per player
   never ship in Phase 2. All dev knobs move behind a host-only flag on the
   dashboard.
 
-## Open questions to resolve before step 1
+## Infrastructure decisions (locked)
 
-- Hosting account: do you already have Cloudflare? (free tier fits a party
-  for a very long time).
-- Domain: use a subdomain of your GitHub Pages site, or a separate domain?
-  CORS / WebSocket origin setup differs slightly.
-- What's the social flow when someone loses their net? Settlement screen
-  tells them the number; cash moves in Venmo/etc. on your honor.
+- **Cloudflare account.** Reusing the existing account from another project.
+  This project gets its own isolated Worker, Durable Object namespace, and
+  D1 database. Zero crossover with the other project's resources.
+- **Domain.** Free `*.workers.dev` subdomain for the backend (e.g.
+  `slot-machine.<handle>.workers.dev`). Static UI stays on GitHub Pages.
+  Easy to swap to a custom domain later by binding a route — no code
+  changes required.
+- **Player cashout screen.** Bare: "Net: +$X" or "Net: −$X", nothing else.
+  Payment happens out-of-band (Venmo, cash).
+- **House dashboard.** Separate from the player view. Live per-seat stats
+  during play (name, balance, net, spins, bonuses hit, idle time) and a
+  post-session per-seat report that includes every spin, every top-up,
+  and every cashout. Downloadable JSON + CSV. This is where you run the
+  night from.
