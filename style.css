@@ -26,6 +26,13 @@
   box-sizing: border-box;
 }
 
+/* Mobile niceties: kill the iOS gray flash on button taps and prevent
+   the 300ms double-tap zoom that makes spins feel sluggish. */
+button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
 html, body {
   margin: 0;
   padding: 0;
@@ -45,12 +52,18 @@ html, body {
 .machine {
   max-width: 680px;
   margin: 0 auto;
-  padding: 32px 20px 64px;
+  /* Safe-area padding keeps content clear of iPhone notches and the home
+     indicator. Horizontal padding clamps down on narrow phones so the
+     grid and bet controls still fit at 360px. */
+  padding:
+    calc(28px + env(safe-area-inset-top, 0px))
+    clamp(12px, 4vw, 20px)
+    calc(48px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 28px;
+  gap: clamp(18px, 4vw, 28px);
 }
 
 /* Brand header — centered, stacked */
@@ -409,9 +422,9 @@ html, body {
 .bonus-indicator {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 10px;
+  gap: clamp(6px, 2vw, 10px);
   width: 100%;
-  padding: 12px;
+  padding: 12px clamp(8px, 3vw, 12px);
   background:
     linear-gradient(180deg, rgba(14, 107, 68, 0.28) 0%, rgba(14, 107, 68, 0.12) 100%),
     rgba(16, 4, 6, 0.6);
@@ -425,7 +438,7 @@ html, body {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  min-width: 0;
+  min-width: 0; /* let contents shrink inside the 3-column grid */
 }
 
 .bonus-label {
@@ -436,7 +449,7 @@ html, body {
 }
 
 .bonus-value {
-  font-size: 1rem;
+  font-size: clamp(0.85rem, 3.2vw, 1rem);
   font-weight: 800;
   color: #d7f5e4;
   font-variant-numeric: tabular-nums;
@@ -451,6 +464,7 @@ html, body {
   left: 50%;
   top: 40%;
   transform: translate(-50%, -50%) scale(0);
+  max-width: calc(100vw - 32px);
   text-align: center;
   opacity: 0;
   pointer-events: none;
@@ -459,7 +473,7 @@ html, body {
 .bonus-banner-title {
   font-family: "Playfair Display", Georgia, serif;
   font-weight: 900;
-  font-size: clamp(2.2rem, 12vw, 4.2rem);
+  font-size: clamp(1.8rem, 10vw, 4.2rem);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   background: linear-gradient(180deg, #d8ffed 0%, #2fb57a 55%, #0e6b44 100%);
@@ -548,7 +562,7 @@ html, body {
 .bet-controls {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: clamp(6px, 2vw, 10px);
   width: 100%;
 }
 
@@ -557,10 +571,11 @@ html, body {
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 12px 10px;
+  padding: 12px clamp(6px, 2vw, 10px);
   background: rgba(16, 4, 6, 0.55);
   border: 1px solid rgba(242, 197, 106, 0.18);
   border-radius: var(--radius-md);
+  min-width: 0; /* allow children to shrink in the grid cell */
 }
 
 .bet-label {
@@ -584,7 +599,7 @@ html, body {
 .stepper {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: clamp(6px, 2vw, 10px);
 }
 
 .stepper-btn {
@@ -620,9 +635,9 @@ html, body {
 }
 
 .stepper-value {
-  min-width: 68px;
+  min-width: clamp(50px, 14vw, 68px);
   text-align: center;
-  font-size: 1.2rem;
+  font-size: clamp(1rem, 3.8vw, 1.2rem);
   font-weight: 700;
   color: var(--text);
   font-variant-numeric: tabular-nums;
@@ -762,11 +777,13 @@ html, body {
   left: 50%;
   top: 40%;
   transform: translate(-50%, -50%) scale(0);
+  max-width: calc(100vw - 32px);
   font-family: "Playfair Display", Georgia, serif;
   font-weight: 900;
-  font-size: clamp(3rem, 16vw, 6rem);
+  font-size: clamp(2.4rem, 14vw, 6rem);
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  white-space: nowrap;
   background: linear-gradient(180deg, #fff1c9 0%, var(--accent) 50%, var(--accent-deep) 100%);
   -webkit-background-clip: text;
   background-clip: text;
