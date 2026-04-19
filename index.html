@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Norminton Casino</title>
-  <link rel="stylesheet" href="style.css?v=13" />
+  <link rel="stylesheet" href="style.css?v=14" />
 </head>
 <body>
   <main class="machine">
@@ -104,12 +104,25 @@
     </div>
   </div>
 
+  <!-- Bonus wheels overlay — shown only when a bonus is triggered. -->
+  <div class="wheel-overlay" id="wheel-overlay" hidden aria-hidden="true">
+    <div class="wheel-stage">
+      <h2 class="wheel-title" id="wheel-title">Multiplier Wheel</h2>
+      <div class="wheel-wrap">
+        <div class="wheel-pointer" aria-hidden="true"></div>
+        <svg class="wheel" id="wheel" viewBox="-110 -110 220 220"></svg>
+        <div class="wheel-result" id="wheel-result"></div>
+      </div>
+      <button type="button" class="wheel-button" id="wheel-button">Spin</button>
+    </div>
+  </div>
+
   <!-- Dev panel — only revealed when the URL contains ?dev=1. Hidden in
        normal play so it never distracts the user. -->
   <div class="dev-panel" id="dev-panel" hidden>
     <button type="button" class="dev-button" id="dev-force-bonus">Force Bonus</button>
   </div>
 
-  <script src="game.js?v=16"></script>
+  <script src="game.js?v=17"></script>
 </body>
 </html>

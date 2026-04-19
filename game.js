@@ -93,9 +93,30 @@ const CONFIG = {
   waysCount: 243,
   // Regular (non-wild, non-scatter) symbols evaluated for ways wins.
   paySymbols: ["leaf", "acorn", "mushroom", "rabbit", "fox", "deer", "bear", "wolf"],
-  // Bonus round: triggered by 3+ scatters. Multiplier grows across the
-  // round — spin k (1-indexed) pays k times base win. Median bonus ~40x bet.
-  freeSpinsAwarded: 10,
+  // Bonus round: 3+ scatters trigger two wheels in sequence. Wheel 1 locks
+  // in the multiplier for the whole round; wheel 2 locks in the number of
+  // free spins. Slices are listed in display order (slice 0 at top, going
+  // clockwise). Palette class picks the slice color from style.css.
+  multiplierWheel: [
+    { value:  2, color: "wheel-slice-a" },
+    { value:  3, color: "wheel-slice-b" },
+    { value:  5, color: "wheel-slice-c" },
+    { value:  3, color: "wheel-slice-d" },
+    { value: 10, color: "wheel-slice-e" },
+    { value:  2, color: "wheel-slice-b" },
+    { value:  5, color: "wheel-slice-a" },
+    { value: 25, color: "wheel-slice-f" },
+  ],
+  freeSpinsWheel: [
+    { value:  5, color: "wheel-slice-a" },
+    { value:  8, color: "wheel-slice-b" },
+    { value: 10, color: "wheel-slice-c" },
+    { value:  8, color: "wheel-slice-d" },
+    { value: 15, color: "wheel-slice-e" },
+    { value:  5, color: "wheel-slice-b" },
+    { value: 10, color: "wheel-slice-a" },
+    { value: 20, color: "wheel-slice-f" },
+  ],
 
   // Animation tuning
   spinBaseDurationMs: 700,     // reel 0 spins this long
@@ -132,12 +153,13 @@ const state = {
 // Bonus round state. Tracked separately so regular game flow stays readable.
 // No re-trigger in v1: scatters during free spins still pay their scatter
 // multiplier (via the evaluator) but don't add more free spins.
-// `currentMultiplier` is the multiplier that the upcoming free spin will use.
-// It starts at 1 and climbs by 1 after each spin, giving a ×1–×10 ramp.
+// `multiplier` and `spinsAwarded` are locked in by the two wheels that show
+// when the bonus triggers.
 const bonus = {
   active: false,
   spinsRemaining: 0,
-  currentMultiplier: 1,
+  spinsAwarded: 0,
+  multiplier: 1,
   totalWin: 0,
 };
 
@@ -486,8 +508,7 @@ async function performSpin() {
 
   clearWinHighlights();
 
-  // Snapshot the multiplier for *this* free spin before we mutate state.
-  const multiplier = isFreeSpin ? bonus.currentMultiplier : 1;
+  const multiplier = isFreeSpin ? bonus.multiplier : 1;
 
   if (!isFreeSpin) {
     state.balance -= bet;
@@ -524,9 +545,6 @@ async function performSpin() {
   saveBalance();
   if (isFreeSpin) {
     bonus.totalWin += winAmount;
-    // Ramp up for the next free spin. Left at its final value (no clamp)
-    // when the round ends; startFreeSpins resets it next time.
-    bonus.currentMultiplier++;
     updateBonusIndicator();
   }
   updateUI();
@@ -543,10 +561,14 @@ async function performSpin() {
     console.log(isFreeSpin ? "Free spin — no win" : "No win");
   }
 
-  // Start the bonus round after a base-game trigger resolves. Free spins
-  // themselves do not re-trigger (simplified v1 per the spec).
+  // Start the bonus round after a base-game trigger resolves. The two
+  // wheels run sequentially and lock in the free-spin count + multiplier
+  // before the first free spin.
   if (!isFreeSpin && baseResult.bonusTriggered) {
-    setTimeout(startFreeSpins, 700);
+    setTimeout(async () => {
+      const { freeSpins, multiplier } = await runBonusWheels();
+      startFreeSpins(freeSpins, multiplier);
+    }, 700);
     return;
   }
 
@@ -677,6 +699,164 @@ function setupDevPanel() {
   });
 }
 
+// ---------- Bonus wheels ----------
+
+const SVG_WHEEL_NS = "http://www.w3.org/2000/svg";
+
+// Build the pie-slice SVG for a wheel. Slice 0 sits centered at the top
+// (12 o'clock) where the pointer is, and slices proceed clockwise.
+function renderWheel(svg, segments) {
+  svg.innerHTML = "";
+  const radius = 100;
+  const n = segments.length;
+  const sliceAngle = 360 / n;
+
+  segments.forEach((seg, i) => {
+    // Start at top (−90° in SVG coords), rotate clockwise.
+    const startDeg = -90 + i * sliceAngle - sliceAngle / 2;
+    const endDeg = startDeg + sliceAngle;
+    const startRad = (startDeg * Math.PI) / 180;
+    const endRad = (endDeg * Math.PI) / 180;
+
+    const x1 = Math.cos(startRad) * radius;
+    const y1 = Math.sin(startRad) * radius;
+    const x2 = Math.cos(endRad) * radius;
+    const y2 = Math.sin(endRad) * radius;
+
+    const path = document.createElementNS(SVG_WHEEL_NS, "path");
+    path.setAttribute(
+      "d",
+      `M 0 0 L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${radius} ${radius} 0 0 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`,
+    );
+    path.setAttribute("class", `${seg.color} wheel-divider`);
+    svg.appendChild(path);
+
+    // Label at the midpoint, rotated so it's readable along the slice.
+    const midDeg = startDeg + sliceAngle / 2;
+    const midRad = (midDeg * Math.PI) / 180;
+    const textX = Math.cos(midRad) * radius * 0.62;
+    const textY = Math.sin(midRad) * radius * 0.62;
+    const text = document.createElementNS(SVG_WHEEL_NS, "text");
+    text.setAttribute("x", textX.toFixed(2));
+    text.setAttribute("y", textY.toFixed(2));
+    text.setAttribute("text-anchor", "middle");
+    text.setAttribute("dominant-baseline", "middle");
+    // Rotate the text to sit radially on the slice.
+    text.setAttribute(
+      "transform",
+      `rotate(${(midDeg + 90).toFixed(2)} ${textX.toFixed(2)} ${textY.toFixed(2)})`,
+    );
+    text.setAttribute("class", "wheel-label");
+    text.textContent = `× ${seg.value}`;
+    svg.appendChild(text);
+  });
+
+  // Outer rim and center hub for a polished look.
+  const rim = document.createElementNS(SVG_WHEEL_NS, "circle");
+  rim.setAttribute("r", String(radius));
+  rim.setAttribute("class", "wheel-rim");
+  svg.appendChild(rim);
+  const hub = document.createElementNS(SVG_WHEEL_NS, "circle");
+  hub.setAttribute("r", "8");
+  hub.setAttribute("class", "wheel-hub");
+  svg.appendChild(hub);
+}
+
+// Each wheel spins to a chosen slice. Slice i's center sits at angle
+// (i * sliceAngle) clockwise from top; rotating the wheel by -i*sliceAngle
+// brings it back under the pointer. Several extra turns make the spin feel
+// weighty and keep the landing position unpredictable.
+function animateWheel(svg, segments, chosenIndex) {
+  return new Promise((resolve) => {
+    const n = segments.length;
+    const sliceAngle = 360 / n;
+    const fullTurns = 5 + Math.floor(Math.random() * 3); // 5-7 full turns
+    // A small random offset within the slice keeps the end position looking
+    // natural (the pointer doesn't always land dead-center).
+    const jitter = (Math.random() - 0.5) * sliceAngle * 0.6;
+    const target = fullTurns * 360 - chosenIndex * sliceAngle + jitter;
+
+    svg.style.transition = "transform 3.6s cubic-bezier(0.1, 0.75, 0.2, 1)";
+    // Force a reflow so the transition applies cleanly on repeat runs.
+    void svg.offsetWidth;
+    svg.style.transform = `rotate(${target}deg)`;
+
+    const onEnd = () => {
+      svg.removeEventListener("transitionend", onEnd);
+      resolve();
+    };
+    svg.addEventListener("transitionend", onEnd);
+  });
+}
+
+function resetWheel(svg) {
+  // Snap back to 0 without animation so the next wheel starts fresh.
+  svg.style.transition = "none";
+  svg.style.transform = "rotate(0deg)";
+  void svg.offsetWidth;
+}
+
+// Wait for a user tap on the wheel's "Spin" button.
+function waitForTap(button) {
+  return new Promise((resolve) => {
+    const onClick = () => {
+      button.removeEventListener("click", onClick);
+      resolve();
+    };
+    button.addEventListener("click", onClick);
+  });
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Show one wheel, have the player spin it, and resolve with the chosen
+// segment. All segments are equally weighted — rebalance by repeating a
+// value in CONFIG if you want weighting.
+async function runSingleWheel(title, segments) {
+  const overlay = document.getElementById("wheel-overlay");
+  const svg = document.getElementById("wheel");
+  const button = document.getElementById("wheel-button");
+  const titleEl = document.getElementById("wheel-title");
+  const resultEl = document.getElementById("wheel-result");
+
+  titleEl.textContent = title;
+  resetWheel(svg);
+  renderWheel(svg, segments);
+  resultEl.classList.remove("show");
+  resultEl.textContent = "";
+  button.disabled = false;
+  button.textContent = "Spin";
+  overlay.hidden = false;
+
+  await waitForTap(button);
+  button.disabled = true;
+
+  const chosenIndex = Math.floor(Math.random() * segments.length);
+  await animateWheel(svg, segments, chosenIndex);
+
+  const chosen = segments[chosenIndex];
+  resultEl.textContent = `× ${chosen.value}`;
+  // Restart the pop animation cleanly.
+  resultEl.classList.remove("show");
+  void resultEl.offsetWidth;
+  resultEl.classList.add("show");
+
+  // Pause so the player can register the result before moving on.
+  await wait(1400);
+  return chosen.value;
+}
+
+async function runBonusWheels() {
+  const multiplier = await runSingleWheel("Multiplier Wheel", CONFIG.multiplierWheel);
+  await wait(200);
+  const freeSpins = await runSingleWheel("Free Spins Wheel", CONFIG.freeSpinsWheel);
+  await wait(250);
+  document.getElementById("wheel-overlay").hidden = true;
+  return { multiplier, freeSpins };
+}
+
 // ---------- Free-spins bonus round ----------
 
 function showBonusBanner(title, sub) {
@@ -696,15 +876,16 @@ function showBonusBanner(title, sub) {
 
 function updateBonusIndicator() {
   document.getElementById("bonus-remaining").textContent = bonus.spinsRemaining;
-  document.getElementById("bonus-total").textContent = CONFIG.freeSpinsAwarded;
-  document.getElementById("bonus-multiplier").textContent = bonus.currentMultiplier;
+  document.getElementById("bonus-total").textContent = bonus.spinsAwarded;
+  document.getElementById("bonus-multiplier").textContent = bonus.multiplier;
   document.getElementById("bonus-total-win").textContent = formatCredits(bonus.totalWin);
 }
 
-function startFreeSpins() {
+function startFreeSpins(spinsAwarded, multiplier) {
   bonus.active = true;
-  bonus.spinsRemaining = CONFIG.freeSpinsAwarded;
-  bonus.currentMultiplier = 1; // first free spin pays x1, then x2, x3, ...
+  bonus.spinsAwarded = spinsAwarded;
+  bonus.spinsRemaining = spinsAwarded;
+  bonus.multiplier = multiplier;
   bonus.totalWin = 0;
 
   const indicator = document.getElementById("bonus-indicator");
@@ -712,8 +893,8 @@ function startFreeSpins() {
   updateBonusIndicator();
 
   showBonusBanner(
-    `${CONFIG.freeSpinsAwarded} Free Spins`,
-    `Multiplier grows × 1 to × ${CONFIG.freeSpinsAwarded}`,
+    `${spinsAwarded} Free Spins`,
+    `× ${multiplier} Multiplier`,
   );
   updateUI();
 }

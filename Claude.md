@@ -47,9 +47,10 @@ A personal-learning browser slot machine. Generic nature/animal theme. Runs as a
 ### Bonus round
 
 - Triggered by 3+ scatters.
-- **Build v1 without the hold & spin bonus.** Instead, implement 10 free spins
-  with a **growing ×1 → ×10 multiplier** (spin 1 pays ×1, spin 2 pays ×2, …,
-  spin 10 pays ×10). Volatile and exciting; typical bonus pays 30–60× bet.
+- **Build v1 without the hold & spin bonus.** Instead:
+  1. A **multiplier wheel** spins and locks in a fixed multiplier.
+  2. A **free-spins wheel** spins and locks in the number of free spins.
+  3. The round plays out with those fixed values. No re-trigger.
 - Hold & spin is deferred to v2. Scope v2 separately — do not start it until
   v1 is fully playable.
 
