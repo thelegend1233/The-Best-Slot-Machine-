@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Norminton Casino</title>
-  <link rel="stylesheet" href="style.css?v=12" />
+  <link rel="stylesheet" href="style.css?v=13" />
 </head>
 <body>
   <main class="machine">
@@ -42,6 +42,21 @@
         <div class="cell"></div>
         <div class="cell"></div>
         <div class="cell"></div>
+      </div>
+    </div>
+
+    <div class="bonus-indicator" id="bonus-indicator" hidden>
+      <div class="bonus-item">
+        <span class="bonus-label">Free Spins</span>
+        <span class="bonus-value"><span id="bonus-remaining">10</span> / <span id="bonus-total">10</span></span>
+      </div>
+      <div class="bonus-item">
+        <span class="bonus-label">Multiplier</span>
+        <span class="bonus-value">×<span id="bonus-multiplier">2</span></span>
+      </div>
+      <div class="bonus-item">
+        <span class="bonus-label">Bonus Win</span>
+        <span class="bonus-value" id="bonus-total-win">0.00</span>
       </div>
     </div>
 
@@ -83,8 +98,12 @@
   <div class="celebration" aria-hidden="true">
     <div class="particles" id="particles"></div>
     <div class="big-win-banner" id="big-win-banner">BIG WIN</div>
+    <div class="bonus-banner" id="bonus-banner" hidden>
+      <div class="bonus-banner-title" id="bonus-banner-title">FREE SPINS</div>
+      <div class="bonus-banner-sub" id="bonus-banner-sub">10 × 2</div>
+    </div>
   </div>
 
-  <script src="game.js?v=13"></script>
+  <script src="game.js?v=14"></script>
 </body>
 </html>

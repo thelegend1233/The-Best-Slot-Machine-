@@ -202,6 +202,95 @@ html, body {
     0 6px 14px rgba(0, 0, 0, 0.5);
 }
 
+/* Bonus indicator — visible during free-spins round. Emerald-tinted to
+   match the wild tile and distinguish this state from the normal game. */
+.bonus-indicator[hidden] { display: none; }
+
+.bonus-indicator {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+  padding: 12px;
+  background:
+    linear-gradient(180deg, rgba(14, 107, 68, 0.28) 0%, rgba(14, 107, 68, 0.12) 100%),
+    rgba(16, 4, 6, 0.6);
+  border: 1px solid rgba(47, 181, 122, 0.5);
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 1px 0 rgba(255, 227, 168, 0.1);
+}
+
+.bonus-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.bonus-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #b6e6cd;
+}
+
+.bonus-value {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #d7f5e4;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Bonus banner — reuses the celebration overlay. Shown when free spins
+   start ("10 FREE SPINS × 2") and when they end ("BONUS WIN / total"). */
+.bonus-banner[hidden] { display: none; }
+
+.bonus-banner {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  transform: translate(-50%, -50%) scale(0);
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.bonus-banner-title {
+  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 900;
+  font-size: clamp(2.2rem, 12vw, 4.2rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: linear-gradient(180deg, #d8ffed 0%, #2fb57a 55%, #0e6b44 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.35)) drop-shadow(0 0 36px rgba(47, 181, 122, 0.7));
+}
+
+.bonus-banner-sub {
+  margin-top: 4px;
+  font-size: clamp(1rem, 4vw, 1.4rem);
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--accent-soft);
+  text-shadow: 0 0 18px rgba(242, 197, 106, 0.6);
+}
+
+.bonus-banner.show {
+  animation: bonus-banner-pop 2.4s cubic-bezier(0.2, 1, 0.3, 1) forwards;
+}
+
+@keyframes bonus-banner-pop {
+  0%   { transform: translate(-50%, -50%) scale(0) rotate(-8deg); opacity: 0; }
+  22%  { transform: translate(-50%, -50%) scale(1.12) rotate(2deg); opacity: 1; }
+  45%  { transform: translate(-50%, -50%) scale(1) rotate(0); }
+  85%  { opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1) rotate(0); opacity: 0; }
+}
+
 /* Stats row — balance + last win */
 .stats {
   display: flex;

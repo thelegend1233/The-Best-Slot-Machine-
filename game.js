@@ -1,7 +1,8 @@
 // Norminton Casino — slot machine
 // Mechanic: 243 ways pays. Any 3+ matching symbols left-to-right, one per
 // column, regardless of row. Wilds substitute. Wins highlight every
-// contributing cell; no payline polylines. See Claude.md for the full spec.
+// contributing cell; no payline polylines. 3+ scatters trigger 10 free spins
+// at x2 multiplier. See Claude.md for the full spec.
 
 // Single place where emoji art is mapped to symbol names. Swap emojis for real
 // art later without hunting through the codebase.
@@ -92,6 +93,9 @@ const CONFIG = {
   waysCount: 243,
   // Regular (non-wild, non-scatter) symbols evaluated for ways wins.
   paySymbols: ["leaf", "acorn", "mushroom", "rabbit", "fox", "deer", "bear", "wolf"],
+  // Bonus round: triggered by 3+ scatters.
+  freeSpinsAwarded: 10,
+  freeSpinsMultiplier: 2,
 
   // Animation tuning
   spinBaseDurationMs: 700,     // reel 0 spins this long
@@ -123,6 +127,16 @@ const state = {
   balance: loadBalance(),
   betIndex: 2,   // index into CONFIG.betOptions → 1.00
   lastWin: 0,
+};
+
+// Bonus round state. Tracked separately so regular game flow stays readable.
+// No re-trigger in v1: scatters during free spins still pay their scatter
+// multiplier (via the evaluator) but don't add more free spins.
+const bonus = {
+  active: false,
+  spinsRemaining: 0,
+  multiplier: CONFIG.freeSpinsMultiplier,
+  totalWin: 0,
 };
 
 function currentBet() {
@@ -432,16 +446,22 @@ function updateUI() {
   document.getElementById("win").textContent = formatCredits(state.lastWin);
   document.getElementById("bet").textContent = formatCredits(currentBet());
 
-  // Disable spin when the player can't afford the current bet.
-  // Stays enabled during a spin so a second tap can skip the animation.
+  // Free spins: Spin is always enabled (cost is zero). Paid play: require
+  // balance to cover the bet. During an in-flight animation Spin stays
+  // enabled so a second tap can skip.
   const spinButton = document.getElementById("spin-button");
-  spinButton.disabled = !spinInProgress && state.balance < currentBet();
+  spinButton.disabled =
+    !spinInProgress && !bonus.active && state.balance < currentBet();
+  spinButton.textContent = bonus.active ? "Free Spin" : "Spin";
 
-  // Disable stepper extremes so the player can't push past bounds.
+  // Bet steppers and the buy-back-in button are locked during the bonus so
+  // the player can't change the wager or reset their balance mid-round.
+  const lockedForBonus = bonus.active;
   document.querySelector('[data-action="bet-down"]').disabled =
-    state.betIndex <= 0;
+    lockedForBonus || state.betIndex <= 0;
   document.querySelector('[data-action="bet-up"]').disabled =
-    state.betIndex >= CONFIG.betOptions.length - 1;
+    lockedForBonus || state.betIndex >= CONFIG.betOptions.length - 1;
+  document.getElementById("buy-back-in-button").disabled = lockedForBonus;
 }
 
 function handleStepper(action) {
@@ -457,46 +477,65 @@ async function performSpin() {
   if (spinInProgress) return;
 
   const bet = currentBet();
-  if (state.balance < bet) return;
+  const isFreeSpin = bonus.active;
+
+  // Paid spins require balance; free spins don't touch it.
+  if (!isFreeSpin && state.balance < bet) return;
 
   clearWinHighlights();
 
-  state.balance -= bet;
+  if (!isFreeSpin) {
+    state.balance -= bet;
+    saveBalance();
+  } else {
+    bonus.spinsRemaining--;
+  }
   state.lastWin = 0;
-  saveBalance();
   updateUI();
+  if (isFreeSpin) updateBonusIndicator();
 
   // Decide the outcome before the animation so evaluation and display stay
   // in sync even if the animation is skipped.
   const grid = spinAllReels();
-  const result = evaluateSpin(grid, bet);
+  const baseResult = evaluateSpin(grid, bet);
+  const multiplier = isFreeSpin ? bonus.multiplier : 1;
+  const winAmount = baseResult.totalWin * multiplier;
 
   spinInProgress = true;
   await animateReels(grid);
   spinInProgress = false;
 
-  state.lastWin = result.totalWin;
-  state.balance += result.totalWin;
+  state.lastWin = winAmount;
+  state.balance += winAmount;
   saveBalance();
+  if (isFreeSpin) {
+    bonus.totalWin += winAmount;
+    updateBonusIndicator();
+  }
   updateUI();
 
-  if (result.totalWin > 0) {
+  if (winAmount > 0) {
     console.log(
-      `Win: ${formatCredits(result.totalWin)} credits`,
-      { hits: result.hits, scatters: result.scatterCount, scatterWin: result.scatterWin },
+      `${isFreeSpin ? "Free spin" : "Spin"} win: ${formatCredits(winAmount)} credits`,
+      { hits: baseResult.hits, scatters: baseResult.scatterCount, multiplier },
     );
-    drawWinHighlights(result);
+    drawWinHighlights(baseResult);
     pulseWinDisplay();
-    if (isBigWin(result.totalWin, bet)) {
-      runBigWinCelebration();
-    }
+    if (isBigWin(winAmount, bet)) runBigWinCelebration();
   } else {
-    console.log("No win");
+    console.log(isFreeSpin ? "Free spin — no win" : "No win");
   }
 
-  // Bonus detection is ready here; the actual free-spins round is step 11.
-  if (result.bonusTriggered) {
-    console.log(`Bonus triggered! ${result.scatterCount} scatters — free spins land in step 11.`);
+  // Start the bonus round after a base-game trigger resolves. Free spins
+  // themselves do not re-trigger (simplified v1 per the spec).
+  if (!isFreeSpin && baseResult.bonusTriggered) {
+    setTimeout(startFreeSpins, 700);
+    return;
+  }
+
+  // Wind down the bonus once all free spins are used.
+  if (isFreeSpin && bonus.spinsRemaining === 0) {
+    setTimeout(endFreeSpins, 900);
   }
 }
 
@@ -577,6 +616,58 @@ function clearCelebration() {
   const banner = document.getElementById("big-win-banner");
   banner.classList.remove("show");
   document.querySelector(".machine").classList.remove("shake");
+}
+
+// ---------- Free-spins bonus round ----------
+
+function showBonusBanner(title, sub) {
+  const banner = document.getElementById("bonus-banner");
+  document.getElementById("bonus-banner-title").textContent = title;
+  document.getElementById("bonus-banner-sub").textContent = sub;
+  banner.hidden = false;
+  banner.classList.remove("show");
+  // Force a reflow so the animation restarts on back-to-back banners.
+  void banner.offsetWidth;
+  banner.classList.add("show");
+  setTimeout(() => {
+    banner.classList.remove("show");
+    banner.hidden = true;
+  }, 2500);
+}
+
+function updateBonusIndicator() {
+  document.getElementById("bonus-remaining").textContent = bonus.spinsRemaining;
+  document.getElementById("bonus-total").textContent = CONFIG.freeSpinsAwarded;
+  document.getElementById("bonus-multiplier").textContent = bonus.multiplier;
+  document.getElementById("bonus-total-win").textContent = formatCredits(bonus.totalWin);
+}
+
+function startFreeSpins() {
+  bonus.active = true;
+  bonus.spinsRemaining = CONFIG.freeSpinsAwarded;
+  bonus.multiplier = CONFIG.freeSpinsMultiplier;
+  bonus.totalWin = 0;
+
+  const indicator = document.getElementById("bonus-indicator");
+  indicator.hidden = false;
+  updateBonusIndicator();
+
+  showBonusBanner(
+    `${CONFIG.freeSpinsAwarded} Free Spins`,
+    `× ${CONFIG.freeSpinsMultiplier} multiplier`,
+  );
+  updateUI();
+}
+
+function endFreeSpins() {
+  const totalWon = bonus.totalWin;
+  bonus.active = false;
+  bonus.spinsRemaining = 0;
+
+  document.getElementById("bonus-indicator").hidden = true;
+  showBonusBanner("Bonus Win", `${formatCredits(totalWon)} credits`);
+  updateUI();
+  console.log(`Bonus ended. Total won: ${formatCredits(totalWon)} credits.`);
 }
 
 // "Buy Back In" — top up the balance to the starting amount. Always available
