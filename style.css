@@ -916,18 +916,40 @@ html, body {
   40%, 60% { transform: translate3d(5px, -1px, 0); }
 }
 
-/* Full-screen shake on bonus trigger — bigger and longer than the big-win
-   machine shake to signal something exceptional is happening. */
+/* Full-screen shake on bonus trigger — 5s of chaos before the wheels appear. */
 body.bonus-shake {
-  animation: bonus-screen-shake 0.9s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  animation: bonus-screen-shake 5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 
 @keyframes bonus-screen-shake {
-  5%, 95%  { transform: translate3d(-4px,  1px, 0); }
-  15%, 85% { transform: translate3d( 7px, -2px, 0); }
-  25%, 75% { transform: translate3d(-9px,  3px, 0); }
-  35%, 65% { transform: translate3d( 9px, -3px, 0); }
-  45%, 55% { transform: translate3d(-7px,  2px, 0); }
-  50%      { transform: translate3d( 5px, -1px, 0); }
+  0%       { transform: translate3d(0, 0, 0); }
+  4%, 96%  { transform: translate3d(-4px,  1px, 0); }
+  8%, 92%  { transform: translate3d( 7px, -2px, 0); }
+  12%, 88% { transform: translate3d(-9px,  3px, 0); }
+  16%, 84% { transform: translate3d( 9px, -3px, 0); }
+  20%, 80% { transform: translate3d(-7px,  2px, 0); }
+  24%, 76% { transform: translate3d( 8px, -1px, 0); }
+  28%, 72% { transform: translate3d(-6px,  3px, 0); }
+  32%, 68% { transform: translate3d( 9px, -2px, 0); }
+  36%, 64% { transform: translate3d(-8px,  1px, 0); }
+  40%, 60% { transform: translate3d( 6px, -3px, 0); }
+  44%, 56% { transform: translate3d(-9px,  2px, 0); }
+  48%, 52% { transform: translate3d( 7px, -1px, 0); }
+  50%      { transform: translate3d(-5px,  2px, 0); }
   100%     { transform: translate3d(0, 0, 0); }
+}
+
+/* Background color shift during the free-spins bonus round.
+   Transitions smoothly so the swap reads as intentional, not a glitch. */
+html, body {
+  transition: background-color 1.2s ease, background-image 1.2s ease;
+}
+
+body.bonus-active {
+  background-color: #060c22;
+  background-image:
+    radial-gradient(1200px 700px at 50% -10%, rgba(100, 140, 255, 0.14), transparent 60%),
+    radial-gradient(900px 600px at 0% 110%,   rgba(60,  80, 200, 0.22), transparent 60%),
+    radial-gradient(900px 600px at 100% 100%, rgba(30,  20, 120, 0.45), transparent 60%),
+    linear-gradient(180deg, #060c22 0%, #0d1440 100%);
 }

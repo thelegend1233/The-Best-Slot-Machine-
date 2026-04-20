@@ -802,13 +802,12 @@ async function performSpin() {
   if (!isFreeSpin && baseResult.bonusTriggered) {
     bonusSequenceInProgress = true;
     updateUI();
-    // Full-screen shake to signal the bonus before the wheels appear.
     document.body.classList.add("bonus-shake");
-    setTimeout(() => document.body.classList.remove("bonus-shake"), 900);
+    setTimeout(() => document.body.classList.remove("bonus-shake"), 5000);
     setTimeout(async () => {
       const { freeSpins, multiplier } = await runBonusWheels();
       startFreeSpins(freeSpins, multiplier);
-    }, 700);
+    }, 5100);
     return;
   }
 
@@ -1193,6 +1192,7 @@ function updateBonusIndicator() {
 function startFreeSpins(spinsAwarded, multiplier) {
   bonusSequenceInProgress = false;
   bonus.active = true;
+  document.body.classList.add("bonus-active");
   bonus.spinsAwarded = spinsAwarded;
   bonus.spinsRemaining = spinsAwarded;
   bonus.multiplier = multiplier;
@@ -1217,6 +1217,7 @@ function startFreeSpins(spinsAwarded, multiplier) {
 function endFreeSpins() {
   const totalWon = bonus.totalWin;
   bonus.active = false;
+  document.body.classList.remove("bonus-active");
   bonus.spinsRemaining = 0;
 
   clearTimeout(autoAdvanceTimeoutId);
