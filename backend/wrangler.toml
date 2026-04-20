@@ -12,10 +12,9 @@ name = "norminton-casino"
 main = "src/index.js"
 compatibility_date = "2024-11-01"
 
-# If your Cloudflare account has more than one profile, uncomment this
-# and paste the ID from `wrangler whoami`. For a single-account login
-# wrangler picks it up automatically.
-# account_id = "YOUR_ACCOUNT_ID_HERE"
+# Cloudflare account ID — not a secret (it's a public routing identifier).
+# Pulled from `wrangler whoami` on the owning account.
+account_id = "1e86782c2fdb02f2cdd63affb1008808"
 
 # Durable Object that owns per-table state (RNG, evaluator, spin log).
 [[durable_objects.bindings]]
