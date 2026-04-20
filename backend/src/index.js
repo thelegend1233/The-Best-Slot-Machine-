@@ -29,6 +29,12 @@ export default {
     const id = env.TABLE.idFromName("default");
     const stub = env.TABLE.get(id);
 
+    // WebSocket upgrades must be passed through as-is — adding CORS headers
+    // to a 101 response would break the handshake.
+    if (request.headers.get("Upgrade") === "websocket") {
+      return stub.fetch(request);
+    }
+
     const upstream = await stub.fetch(request);
     const headers = new Headers(upstream.headers);
     for (const [k, v] of Object.entries(corsHeaders(origin))) headers.set(k, v);

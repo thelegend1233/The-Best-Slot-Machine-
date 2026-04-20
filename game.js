@@ -146,6 +146,68 @@ const CONFIG = {
   spinBounceBackMs: 200,       // time for the reel to settle back from overshoot
 };
 
+// ---------- Backend connection ----------
+
+// Set to your deployed Worker URL to run server-authoritative mode.
+// Leave empty (or remove the value) to play fully offline.
+// Example: "https://norminton-casino.yourhandle.workers.dev"
+const BACKEND_URL = "";
+
+// Internal WS state — not meant to be referenced outside this section.
+let _ws = null;
+let _wsReady = false;
+const _pendingSpins = []; // FIFO; safe because spins are sequential
+
+function connectBackend() {
+  if (!BACKEND_URL) return;
+  const wsUrl = BACKEND_URL.replace(/^http/, "ws").replace(/\/?$/, "") + "/ws";
+  const socket = new WebSocket(wsUrl);
+
+  socket.addEventListener("open", () => {
+    _ws = socket;
+    _wsReady = true;
+    console.log("[backend] connected →", wsUrl);
+  });
+
+  socket.addEventListener("message", (ev) => {
+    let msg;
+    try { msg = JSON.parse(ev.data); } catch { return; }
+    if (_pendingSpins.length === 0) return;
+    const { resolve, reject } = _pendingSpins.shift();
+    if (msg.type === "result") resolve(msg);
+    else reject(new Error(msg.error || "unknown error from server"));
+  });
+
+  socket.addEventListener("close", () => {
+    _ws = null;
+    _wsReady = false;
+    // Drain any in-flight promises so performSpin doesn't hang.
+    while (_pendingSpins.length) _pendingSpins.shift().reject(new Error("disconnected"));
+    console.log("[backend] disconnected — retrying in 3s");
+    setTimeout(connectBackend, 3000);
+  });
+
+  socket.addEventListener("error", () => {
+    // The close event fires after error, so reconnect is handled there.
+    _wsReady = false;
+  });
+}
+
+// Resolves to { grid, totalWin, hits, scatterCells, scatterCount,
+// scatterWin, bonusTriggered } — same shape as evaluateSpin() locally,
+// plus commit/reveal when server mode is active.
+async function requestSpin(bet) {
+  if (!BACKEND_URL || !_wsReady) {
+    // Offline: run the engine client-side as before.
+    const grid = spinAllReels();
+    return { grid, ...evaluateSpin(grid, bet) };
+  }
+  return new Promise((resolve, reject) => {
+    _pendingSpins.push({ resolve, reject });
+    _ws.send(JSON.stringify({ type: "spin", bet }));
+  });
+}
+
 // ---------- Game state ----------
 
 // Single localStorage key per spec — no wrappers, just getItem / setItem.
@@ -671,18 +733,28 @@ async function performSpin() {
 
   // Decide the outcome before the animation so evaluation and display stay
   // in sync even if the animation is skipped.
-  const grid = spinAllReels();
-
-  // Dev override: if the admin armed a forced bonus, plant 3 scatters on
-  // the base-game grid. Ignored during free spins so the bonus doesn't
-  // loop on itself.
-  if (forceBonusNext && !isFreeSpin) {
-    forceBonusNext = false;
-    setDevButtonArmed(false);
-    rigGridForBonus(grid);
+  // Online: server provides the grid and result (authoritative).
+  // Offline: run the engine locally as before.
+  let grid, baseResult;
+  if (BACKEND_URL && _wsReady) {
+    const spinResult = await requestSpin(bet);
+    grid = spinResult.grid;
+    baseResult = spinResult;
+    // forceBonusNext is a dev-only tool; server is authoritative online.
+    if (forceBonusNext && !isFreeSpin) {
+      forceBonusNext = false;
+      setDevButtonArmed(false);
+    }
+  } else {
+    grid = spinAllReels();
+    // Dev override: plant 3 scatters before evaluation.
+    if (forceBonusNext && !isFreeSpin) {
+      forceBonusNext = false;
+      setDevButtonArmed(false);
+      rigGridForBonus(grid);
+    }
+    baseResult = evaluateSpin(grid, bet);
   }
-
-  const baseResult = evaluateSpin(grid, bet);
   const winAmount = baseResult.totalWin * multiplier;
 
   spinInProgress = true;
@@ -1162,6 +1234,7 @@ function buyBackIn() {
 // ---------- Wire-up ----------
 
 document.addEventListener("DOMContentLoaded", () => {
+  connectBackend();
   renderGrid(spinAllReels());
   updateUI();
   setupDevPanel();
