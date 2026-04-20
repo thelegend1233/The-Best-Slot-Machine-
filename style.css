@@ -203,6 +203,17 @@ html, body {
   color: #0a3322;
 }
 
+/* Scatter tile: warm golden-yellow so the moon reads as special at a glance. */
+.cell-scatter {
+  background: linear-gradient(180deg, #fffbe0 0%, #ffd84d 100%);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 200, 0, 0.7),
+    inset 0 0 18px rgba(255, 220, 80, 0.35),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.15),
+    0 2px 6px rgba(0, 0, 0, 0.4),
+    0 0 14px rgba(255, 210, 50, 0.5);
+}
+
 /* Winning cell: solid bright highlight, no pulsing. Much more prominent
    than an unlit cell — gold-tinted tile, thick gold border, strong outer
    glow so the win reads at a glance. */
@@ -903,4 +914,20 @@ html, body {
   20%, 80% { transform: translate3d(3px, 0, 0); }
   30%, 50%, 70% { transform: translate3d(-5px, 1px, 0); }
   40%, 60% { transform: translate3d(5px, -1px, 0); }
+}
+
+/* Full-screen shake on bonus trigger — bigger and longer than the big-win
+   machine shake to signal something exceptional is happening. */
+body.bonus-shake {
+  animation: bonus-screen-shake 0.9s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes bonus-screen-shake {
+  5%, 95%  { transform: translate3d(-4px,  1px, 0); }
+  15%, 85% { transform: translate3d( 7px, -2px, 0); }
+  25%, 75% { transform: translate3d(-9px,  3px, 0); }
+  35%, 65% { transform: translate3d( 9px, -3px, 0); }
+  45%, 55% { transform: translate3d(-7px,  2px, 0); }
+  50%      { transform: translate3d( 5px, -1px, 0); }
+  100%     { transform: translate3d(0, 0, 0); }
 }

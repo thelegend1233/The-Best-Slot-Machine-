@@ -495,8 +495,8 @@ function renderStaticReel(reelEl, symbols) {
   for (const symbolName of symbols) {
     const cell = document.createElement("div");
     cell.className = "cell";
-    // Wilds get a distinct tile so they're instantly recognizable.
     if (symbolName === "wild") cell.classList.add("cell-wild");
+    if (symbolName === "scatter") cell.classList.add("cell-scatter");
     cell.textContent = SYMBOLS[symbolName];
     reelEl.appendChild(cell);
   }
@@ -514,6 +514,7 @@ function renderGrid(grid) {
 // Track animation state so we can (a) ignore duplicate spin requests mid-spin
 // and (b) let a second tap skip the animation to the final result.
 let spinInProgress = false;
+let bonusSequenceInProgress = false; // true between bonus trigger and free spins start
 let activeSkips = [];
 
 function skipActiveSpin() {
@@ -559,6 +560,7 @@ function animateReels(targetGrid) {
         const cell = document.createElement("div");
         cell.className = "cell";
         if (symbolName === "wild") cell.classList.add("cell-wild");
+        if (symbolName === "scatter") cell.classList.add("cell-scatter");
         cell.textContent = SYMBOLS[symbolName];
         strip.appendChild(cell);
       }
@@ -680,7 +682,8 @@ function updateUI() {
   // enabled so a second tap can skip.
   const spinButton = document.getElementById("spin-button");
   spinButton.disabled =
-    !spinInProgress && !bonus.active && state.balance < currentBet();
+    bonusSequenceInProgress ||
+    (!spinInProgress && !bonus.active && state.balance < currentBet());
   spinButton.textContent = bonus.active ? "Free Spin" : "Spin";
 
   // Bet steppers and the buy-back-in button are locked during the bonus so
@@ -797,6 +800,11 @@ async function performSpin() {
   // wheels run sequentially and lock in the free-spin count + multiplier
   // before the first free spin.
   if (!isFreeSpin && baseResult.bonusTriggered) {
+    bonusSequenceInProgress = true;
+    updateUI();
+    // Full-screen shake to signal the bonus before the wheels appear.
+    document.body.classList.add("bonus-shake");
+    setTimeout(() => document.body.classList.remove("bonus-shake"), 900);
     setTimeout(async () => {
       const { freeSpins, multiplier } = await runBonusWheels();
       startFreeSpins(freeSpins, multiplier);
@@ -1183,6 +1191,7 @@ function updateBonusIndicator() {
 }
 
 function startFreeSpins(spinsAwarded, multiplier) {
+  bonusSequenceInProgress = false;
   bonus.active = true;
   bonus.spinsAwarded = spinsAwarded;
   bonus.spinsRemaining = spinsAwarded;
