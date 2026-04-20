@@ -8,16 +8,20 @@ at the repo root stays vanilla HTML / CSS / JS.
 
 ## Status
 
-**Phase 2 step 1a (current):** portable engine code (reels, paytable,
-wheels, evaluator, seedable RNG + commit-reveal) plus Node tests
-verifying parity with Phase 1. No Worker entry point, no Durable
-Object, no WebSocket yet.
+**Phase 2 step 1b (current):** the backend is now a deployable Worker
+with a single Durable Object (`Table`). A `POST /spin` endpoint returns
+a real server-computed spin result with a SHA-256 commit-reveal so the
+client can verify the outcome wasn't altered after the fact.
+
+Done so far:
+- Step 1a ✓ portable engine + parity tests.
+- Step 1b ✓ Worker entry, Durable Object, `wrangler.toml`, HTTP `/spin`
+  endpoint, DO integration tests.
 
 Next up:
-- Step 1b — Worker entry, Durable Object shell, `wrangler.toml`,
-  HTTP `/spin` round-trip for a single player.
-- Step 1c — WebSocket protocol and client network layer.
-- Step 1d — D1 spin log with per-spin commit-reveal fully wired.
+- Step 1c — WebSocket protocol and wire the Phase 1 client to call the
+  backend instead of running the engine locally.
+- Step 1d — D1 spin log with per-spin commit-reveal persisted.
 
 See `../PHASE2.md` for the full plan and locked decisions.
 
@@ -26,16 +30,21 @@ See `../PHASE2.md` for the full plan and locked decisions.
 ```
 backend/
 ├── package.json       # Node + wrangler project metadata (no runtime deps yet)
-├── src/engine/        # Pure, portable game logic (reusable in tests + Worker)
-│   ├── reels.js
-│   ├── paytable.js
-│   ├── wheels.js
-│   ├── spin.js
-│   ├── evaluator.js
-│   └── rng.js         # Seedable PRNG + commit-reveal helpers
+├── wrangler.toml      # Cloudflare Worker + Durable Object config
+├── src/
+│   ├── index.js       # Worker entry — routes requests to the Table DO
+│   ├── table.js       # Table Durable Object (owns RNG + evaluator per table)
+│   └── engine/        # Pure, portable game logic (reusable in tests + Worker)
+│       ├── reels.js
+│       ├── paytable.js
+│       ├── wheels.js
+│       ├── spin.js
+│       ├── evaluator.js
+│       └── rng.js     # Seedable PRNG + commit-reveal helpers
 └── test/              # Node built-in test runner
     ├── evaluator.test.js
-    └── rng.test.js
+    ├── rng.test.js
+    └── table.test.js  # Direct DO fetch tests (no wrangler needed)
 ```
 
 Engine modules avoid Node-specific APIs — they use only what's available
@@ -58,18 +67,45 @@ Tests cover:
 - 500k-spin deterministic RTP sanity check.
 - PRNG determinism, commit-reveal round-trip, and tamper detection.
 
-## Deploying (later)
+## Running the Worker locally
 
-Not ready yet. Once step 1b adds the Worker entry + `wrangler.toml`:
+`wrangler dev` spins up a local server that simulates the Workers
+runtime (including Durable Objects) against the real code. No Cloudflare
+account needed just to poke at it:
 
 ```bash
-# One-time, on a desktop:
-npm install -g wrangler
-wrangler login
+cd backend
+npx wrangler dev           # http://127.0.0.1:8787
 
-# From this directory:
+# In another terminal:
+curl http://127.0.0.1:8787/health
+curl -X POST http://127.0.0.1:8787/spin \
+     -H 'content-type: application/json' \
+     -d '{"bet": 1}'
+```
+
+The spin response includes the `grid`, the `totalWin`, the `hits`, the
+`commit` (SHA-256 of the server seed), and the `reveal` (the seed itself).
+Feed `reveal` back into the engine and you must reproduce the grid —
+that's the audit path.
+
+## Deploying to Cloudflare
+
+One-time on the same desktop:
+
+```bash
+npm install -g wrangler
+wrangler login            # OAuth, opens a browser
+wrangler whoami           # shows your Account ID; paste into wrangler.toml
+                          # if wrangler prompts on deploy
+```
+
+Then, from `backend/`:
+
+```bash
 wrangler deploy
 ```
 
-The Worker will bind to a free `*.workers.dev` subdomain per the
-decisions in `PHASE2.md`.
+Wrangler prints the deployed URL (e.g.
+`https://norminton-casino.<your-handle>.workers.dev`). That's the base
+URL the Phase 1 client will point at in step 1c.

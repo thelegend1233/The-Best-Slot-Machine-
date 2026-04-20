@@ -1,0 +1,35 @@
+# wrangler.toml — Cloudflare Worker config for the Norminton Casino backend.
+#
+# Deploy (after first run of `wrangler login` on your account):
+#     cd backend
+#     wrangler deploy
+#
+# Local dev server (no Cloudflare account needed to just try it):
+#     wrangler dev
+# hits http://127.0.0.1:8787 with Durable Objects simulated locally.
+
+name = "norminton-casino"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+# If your Cloudflare account has more than one profile, uncomment this
+# and paste the ID from `wrangler whoami`. For a single-account login
+# wrangler picks it up automatically.
+# account_id = "YOUR_ACCOUNT_ID_HERE"
+
+# Durable Object that owns per-table state (RNG, evaluator, spin log).
+[[durable_objects.bindings]]
+name = "TABLE"
+class_name = "Table"
+
+# Tells wrangler "this worker now owns a Durable Object class called
+# Table"; required on first deploy.
+[[migrations]]
+tag = "v1"
+new_classes = ["Table"]
+
+[observability]
+enabled = true
+
+[dev]
+port = 8787
