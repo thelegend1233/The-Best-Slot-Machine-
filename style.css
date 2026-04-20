@@ -583,13 +583,19 @@ html, body {
 }
 
 .bonus-banner-sub {
-  margin-top: 4px;
+  margin-top: 10px;
+  display: inline-block;
+  padding: 6px 20px 7px;
   font-size: clamp(1rem, 4vw, 1.4rem);
   font-weight: 700;
   letter-spacing: 0.24em;
   text-transform: uppercase;
   color: var(--accent-soft);
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(242, 197, 106, 0.35);
+  border-radius: 8px;
   text-shadow: 0 0 18px rgba(242, 197, 106, 0.6);
+  backdrop-filter: blur(4px);
 }
 
 .bonus-banner.show {
