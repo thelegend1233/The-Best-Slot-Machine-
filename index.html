@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Norminton Casino</title>
-  <link rel="stylesheet" href="style.css?v=19" />
+  <link rel="stylesheet" href="style.css?v=20" />
   <!-- Howler.js handles audio playback, cross-browser quirks, and iOS
        unlock-on-first-touch. Loaded from CDN so there's no build step. -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js"></script>
@@ -16,6 +16,7 @@
       <div class="brand-text">
         <h1 class="title">Norminton Casino</h1>
         <p class="tagline">House of Wildwood Spins</p>
+        <p class="player-byline" id="player-byline" hidden>Playing as <strong id="player-name-display"></strong></p>
       </div>
     </header>
 
@@ -139,6 +140,25 @@
     </div>
   </div>
 
-  <script src="game.js?v=23"></script>
+  <!-- Name prompt — shown on first load when no display name is saved. -->
+  <div class="name-prompt-overlay" id="name-prompt" hidden>
+    <div class="name-prompt-card">
+      <div class="name-prompt-logo">N</div>
+      <h2 class="name-prompt-title">Norminton Casino</h2>
+      <p class="name-prompt-sub">Enter your name to join the table</p>
+      <input
+        type="text"
+        id="name-input"
+        class="name-input"
+        placeholder="Your name"
+        maxlength="32"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <button type="button" id="name-submit" class="name-submit-btn">Join Table</button>
+    </div>
+  </div>
+
+  <script src="game.js?v=24"></script>
 </body>
 </html>

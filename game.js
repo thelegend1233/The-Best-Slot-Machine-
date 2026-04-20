@@ -152,9 +152,58 @@ const CONFIG = {
 // Example: "https://norminton-casino.yourhandle.workers.dev"
 const BACKEND_URL = "https://norminton-casino.nicholas-1e8.workers.dev";
 
-// Internal WS state — not meant to be referenced outside this section.
+// ---------- Player identity ----------
+
+const PLAYER_KEY = "slot_player";
+
+function loadPlayer() {
+  try {
+    const s = localStorage.getItem(PLAYER_KEY);
+    if (s) return JSON.parse(s);
+  } catch {}
+  return { displayName: null, token: null };
+}
+
+function savePlayer(p) {
+  localStorage.setItem(PLAYER_KEY, JSON.stringify(p));
+}
+
+const player = loadPlayer();
+
+function showPlayerByline() {
+  if (!player.displayName) return;
+  const el = document.getElementById("player-byline");
+  if (!el) return;
+  document.getElementById("player-name-display").textContent = player.displayName;
+  el.hidden = false;
+}
+
+// Returns a Promise that resolves to the display name the user entered.
+function promptDisplayName() {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById("name-prompt");
+    const input   = document.getElementById("name-input");
+    const btn     = document.getElementById("name-submit");
+    overlay.hidden = false;
+    input.focus();
+
+    function submit() {
+      const name = input.value.trim();
+      if (!name) return;
+      overlay.hidden = true;
+      resolve(name);
+    }
+
+    btn.addEventListener("click", submit, { once: true });
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+  });
+}
+
+// ---------- Backend network layer ----------
+
 let _ws = null;
 let _wsReady = false;
+let _pendingJoin = null;
 const _pendingSpins = []; // FIFO; safe because spins are sequential
 
 function connectBackend() {
@@ -164,13 +213,25 @@ function connectBackend() {
 
   socket.addEventListener("open", () => {
     _ws = socket;
-    _wsReady = true;
-    console.log("[backend] connected →", wsUrl);
+    // Don't mark ready yet — wait for "joined" ack before allowing spins.
+    sendJoin(socket);
   });
 
   socket.addEventListener("message", (ev) => {
     let msg;
     try { msg = JSON.parse(ev.data); } catch { return; }
+
+    if (msg.type === "joined") {
+      player.token = msg.token;
+      player.displayName = msg.displayName;
+      savePlayer(player);
+      showPlayerByline();
+      _wsReady = true;
+      if (_pendingJoin) { _pendingJoin.resolve(msg); _pendingJoin = null; }
+      console.log("[backend] joined as", msg.displayName);
+      return;
+    }
+
     if (_pendingSpins.length === 0) return;
     const { resolve, reject } = _pendingSpins.shift();
     if (msg.type === "result") resolve(msg);
@@ -180,16 +241,26 @@ function connectBackend() {
   socket.addEventListener("close", () => {
     _ws = null;
     _wsReady = false;
-    // Drain any in-flight promises so performSpin doesn't hang.
+    if (_pendingJoin) { _pendingJoin.reject(new Error("disconnected")); _pendingJoin = null; }
     while (_pendingSpins.length) _pendingSpins.shift().reject(new Error("disconnected"));
     console.log("[backend] disconnected — retrying in 3s");
     setTimeout(connectBackend, 3000);
   });
 
   socket.addEventListener("error", () => {
-    // The close event fires after error, so reconnect is handled there.
     _wsReady = false;
   });
+}
+
+async function sendJoin(socket) {
+  if (!player.displayName) {
+    player.displayName = await promptDisplayName();
+  }
+  socket.send(JSON.stringify({
+    type: "join",
+    displayName: player.displayName,
+    token: player.token || null,
+  }));
 }
 
 // Resolves to { grid, totalWin, hits, scatterCells, scatterCount,
@@ -203,7 +274,7 @@ async function requestSpin(bet) {
   }
   return new Promise((resolve, reject) => {
     _pendingSpins.push({ resolve, reject });
-    _ws.send(JSON.stringify({ type: "spin", bet }));
+    _ws.send(JSON.stringify({ type: "spin", bet, token: player.token }));
   });
 }
 
@@ -1246,6 +1317,7 @@ function buyBackIn() {
 
 document.addEventListener("DOMContentLoaded", () => {
   connectBackend();
+  showPlayerByline();
   renderGrid(spinAllReels());
   updateUI();
   setupDevPanel();
