@@ -38,7 +38,7 @@ enabled = true
 [[d1_databases]]
 binding = "DB"
 database_name = "norminton-casino-db"
-database_id = "REPLACE_WITH_YOUR_DB_ID"
+database_id = "15b82288-7d7d-4b1c-85db-7060349c91a5"
 
 [dev]
 port = 8787
