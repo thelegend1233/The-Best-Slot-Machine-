@@ -224,6 +224,7 @@ html, body {
     inset 0 0 18px rgba(242, 197, 106, 0.45),
     0 0 38px rgba(242, 197, 106, 0.9),
     0 6px 14px rgba(0, 0, 0, 0.5);
+  transition: background 0.25s ease-out, box-shadow 0.25s ease-out;
 }
 
 /* Bonus wheels overlay — full-viewport dimmer with a centered wheel.
@@ -567,6 +568,15 @@ html, body {
   text-align: center;
   opacity: 0;
   pointer-events: none;
+  padding: 24px 36px 28px;
+  background: rgba(6, 12, 34, 0.82);
+  border: 2px solid rgba(100, 140, 255, 0.35);
+  border-radius: 18px;
+  box-shadow:
+    0 0 48px rgba(60, 80, 200, 0.35),
+    0 0 12px rgba(100, 140, 255, 0.2),
+    inset 0 0 32px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
 }
 
 .bonus-banner-title {

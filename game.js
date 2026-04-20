@@ -819,10 +819,12 @@ async function performSpin() {
       // Auto-advance to the next free spin so the bonus plays itself out.
       // The player can still tap Spin to skip the pause.
       clearTimeout(autoAdvanceTimeoutId);
+      // Give winning spins more breathing room so the highlights are readable.
+      const pauseMs = winAmount > 0 ? 2600 : 1700;
       autoAdvanceTimeoutId = setTimeout(() => {
         autoAdvanceTimeoutId = null;
         if (bonus.active && !spinInProgress) performSpin();
-      }, 1700);
+      }, pauseMs);
     }
   }
 }
