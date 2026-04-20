@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Norminton Casino</title>
-  <link rel="stylesheet" href="style.css?v=20" />
+  <link rel="stylesheet" href="style.css?v=21" />
   <!-- Howler.js handles audio playback, cross-browser quirks, and iOS
        unlock-on-first-touch. Loaded from CDN so there's no build step. -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js"></script>
@@ -140,6 +140,35 @@
     </div>
   </div>
 
+  <!-- Lobby — shown when BACKEND_URL is set but no ?table= code is in the URL. -->
+  <div class="lobby" id="lobby" hidden>
+    <header class="lobby-header">
+      <span class="brand-mark lobby-mark">N</span>
+      <h1 class="lobby-title">Norminton Casino</h1>
+      <p class="lobby-tagline">Private Tables · Real Stakes</p>
+    </header>
+    <div class="lobby-panels">
+      <section class="lobby-panel">
+        <h2 class="lobby-panel-title">Host a Table</h2>
+        <p class="lobby-panel-sub">Set the buy-in, share the code, collect at the end.</p>
+        <label class="lobby-label" for="buy-in-input">Buy-in per player (USD)</label>
+        <input type="number" id="buy-in-input" class="lobby-input" placeholder="20" min="1" max="500" value="20" />
+        <button type="button" id="create-table-btn" class="lobby-btn lobby-btn-primary">Create Table</button>
+        <p class="lobby-error" id="create-error" hidden></p>
+      </section>
+      <div class="lobby-divider"><span>or</span></div>
+      <section class="lobby-panel">
+        <h2 class="lobby-panel-title">Join a Table</h2>
+        <p class="lobby-panel-sub">Enter the 4-letter code your host shared.</p>
+        <label class="lobby-label" for="join-code-input">Table code</label>
+        <input type="text" id="join-code-input" class="lobby-input lobby-code-input"
+               placeholder="WOLF" maxlength="4" autocomplete="off" spellcheck="false" />
+        <button type="button" id="join-table-btn" class="lobby-btn lobby-btn-secondary">Join Table</button>
+        <p class="lobby-error" id="join-error" hidden></p>
+      </section>
+    </div>
+  </div>
+
   <!-- Name prompt — shown on first load when no display name is saved. -->
   <div class="name-prompt-overlay" id="name-prompt" hidden>
     <div class="name-prompt-card">
@@ -159,6 +188,6 @@
     </div>
   </div>
 
-  <script src="game.js?v=24"></script>
+  <script src="game.js?v=25"></script>
 </body>
 </html>

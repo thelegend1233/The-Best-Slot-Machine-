@@ -151,6 +151,7 @@ const CONFIG = {
 // Leave empty (or remove the value) to play fully offline.
 // Example: "https://norminton-casino.yourhandle.workers.dev"
 const BACKEND_URL = "https://norminton-casino.nicholas-1e8.workers.dev";
+const TABLE_CODE = new URLSearchParams(window.location.search).get("table");
 
 // ---------- Player identity ----------
 
@@ -208,7 +209,8 @@ const _pendingSpins = []; // FIFO; safe because spins are sequential
 
 function connectBackend() {
   if (!BACKEND_URL) return;
-  const wsUrl = BACKEND_URL.replace(/^http/, "ws").replace(/\/?$/, "") + "/ws";
+  const wsPath = TABLE_CODE ? `/tables/${TABLE_CODE}/ws` : "/ws";
+  const wsUrl = BACKEND_URL.replace(/^http/, "ws").replace(/\/?$/, "") + wsPath;
   const socket = new WebSocket(wsUrl);
 
   socket.addEventListener("open", () => {
@@ -226,9 +228,15 @@ function connectBackend() {
       player.displayName = msg.displayName;
       savePlayer(player);
       showPlayerByline();
+      if (msg.balance !== undefined) { state.balance = msg.balance; saveBalance(); updateUI(); }
       _wsReady = true;
       if (_pendingJoin) { _pendingJoin.resolve(msg); _pendingJoin = null; }
-      console.log("[backend] joined as", msg.displayName);
+      console.log("[backend] joined as", msg.displayName, "balance:", msg.balance);
+      return;
+    }
+
+    if (msg.type === "error" && _pendingSpins.length === 0) {
+      console.error("[backend]", msg.error);
       return;
     }
 
@@ -266,7 +274,8 @@ async function sendJoin(socket) {
 // Resolves to { grid, totalWin, hits, scatterCells, scatterCount,
 // scatterWin, bonusTriggered } — same shape as evaluateSpin() locally,
 // plus commit/reveal when server mode is active.
-async function requestSpin(bet) {
+async function requestSpin(bet, opts = {}) {
+  const { isFree = false, multiplier = 1 } = opts;
   if (!BACKEND_URL || !_wsReady) {
     // Offline: run the engine client-side as before.
     const grid = spinAllReels();
@@ -274,7 +283,7 @@ async function requestSpin(bet) {
   }
   return new Promise((resolve, reject) => {
     _pendingSpins.push({ resolve, reject });
-    _ws.send(JSON.stringify({ type: "spin", bet, token: player.token }));
+    _ws.send(JSON.stringify({ type: "spin", bet, token: player.token, isFree, multiplier }));
   });
 }
 
@@ -808,11 +817,13 @@ async function performSpin() {
   // in sync even if the animation is skipped.
   // Online: server provides the grid and result (authoritative).
   // Offline: run the engine locally as before.
-  let grid, baseResult;
-  if (BACKEND_URL && _wsReady) {
-    const spinResult = await requestSpin(bet);
+  let grid, baseResult, serverBalance;
+  const isOnline = BACKEND_URL && _wsReady;
+  if (isOnline) {
+    const spinResult = await requestSpin(bet, { isFree: isFreeSpin, multiplier });
     grid = spinResult.grid;
     baseResult = spinResult;
+    serverBalance = spinResult.balance;
     // forceBonusNext is a dev-only tool; server is authoritative online.
     if (forceBonusNext && !isFreeSpin) {
       forceBonusNext = false;
@@ -828,7 +839,8 @@ async function performSpin() {
     }
     baseResult = evaluateSpin(grid, bet);
   }
-  const winAmount = baseResult.totalWin * multiplier;
+  // Server already applies the free-spin multiplier; offline needs it applied here.
+  const winAmount = isOnline ? baseResult.totalWin : baseResult.totalWin * multiplier;
 
   spinInProgress = true;
   playSound("reelSpin");
@@ -837,7 +849,11 @@ async function performSpin() {
   spinInProgress = false;
 
   state.lastWin = winAmount;
-  state.balance += winAmount;
+  if (serverBalance !== undefined) {
+    state.balance = serverBalance;
+  } else {
+    state.balance += winAmount;
+  }
   saveBalance();
   if (winAmount > 0) houseStats.won += winAmount;
   saveHouseStats();
@@ -1313,9 +1329,60 @@ function buyBackIn() {
   updateUI();
 }
 
+// ---------- Lobby ----------
+
+function initLobby() {
+  document.querySelector(".machine").hidden = true;
+  document.getElementById("lobby").hidden = false;
+  document.getElementById("create-table-btn").addEventListener("click", createTable);
+  document.getElementById("join-table-btn").addEventListener("click", joinTable);
+  document.getElementById("join-code-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") joinTable();
+  });
+}
+
+async function createTable() {
+  const btn = document.getElementById("create-table-btn");
+  const errEl = document.getElementById("create-error");
+  const buyIn = Number(document.getElementById("buy-in-input").value);
+  errEl.hidden = true;
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${BACKEND_URL}/tables`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ buyIn }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "server error");
+    window.location.search = `?table=${data.code}`;
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.hidden = false;
+    btn.disabled = false;
+  }
+}
+
+function joinTable() {
+  const codeInput = document.getElementById("join-code-input");
+  const errEl = document.getElementById("join-error");
+  const code = codeInput.value.trim().toUpperCase();
+  if (code.length !== 4) {
+    errEl.textContent = "Enter a 4-letter table code.";
+    errEl.hidden = false;
+    return;
+  }
+  window.location.search = `?table=${code}`;
+}
+
 // ---------- Wire-up ----------
 
 document.addEventListener("DOMContentLoaded", () => {
+  if (BACKEND_URL && !TABLE_CODE) {
+    initLobby();
+    return;
+  }
+
   connectBackend();
   showPlayerByline();
   renderGrid(spinAllReels());
