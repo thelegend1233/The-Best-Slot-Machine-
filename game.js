@@ -77,15 +77,15 @@ const CONFIG = {
   // Scatter is an "anywhere-pays" multiplier of bet. Wild has no entry —
   // it substitutes for other symbols.
   paytable: {
-    wolf:     [2,  9, 30],
-    bear:     [1,  4, 12],
-    deer:     [0,  2,  7],
-    fox:      [0,  1,  4],
-    rabbit:   [0,  0,  2],
+    wolf:     [1,  7, 25],
+    bear:     [0,  3,  9],
+    deer:     [0,  1,  5],
+    fox:      [0,  0,  3],
+    rabbit:   [0,  0,  1],
     mushroom: [0,  0,  1],
     acorn:    [0,  0,  1],
     leaf:     [0,  0,  1],
-    scatter:  [1,  3, 12], // paid on bet, anywhere on the grid
+    scatter:  [0,  2, 10], // paid on bet, anywhere on the grid
   },
 
   // Betting options
@@ -101,30 +101,29 @@ const CONFIG = {
   // repeating values: the layouts below spread the jackpot slot (×25 / ×20)
   // across the wheel so its neighbors are small values and it stays rare.
   //
-  // Multiplier wheel weights (12 slots). Lower-variance than the previous
-  // jackpot-heavy layout — with bonuses triggering ~1 in 50 spins, a flat
-  // x25 slot pushed RTP far above 93%. The single x10 slot still gives the
-  // player a visible jackpot to hope for.
-  //   ×2: 8/12 (67%)   ×3: 3/12 (25%)   ×10: 1/12 (8%)
+  // Multiplier wheel weights (12 slots).
+  //   ×2: 6/12 (50%)   ×3: 3/12 (25%)   ×5: 2/12 (17%)   ×10: 1/12 (8%)
+  //   avg ~3.4× (was 2.9×)
   multiplierWheel: [
     { value:  2, color: "wheel-slice-a" },
     { value:  3, color: "wheel-slice-b" },
     { value:  2, color: "wheel-slice-c" },
-    { value:  2, color: "wheel-slice-d" },
+    { value:  5, color: "wheel-slice-d" },
     { value:  3, color: "wheel-slice-e" },
     { value:  2, color: "wheel-slice-a" },
     { value:  2, color: "wheel-slice-b" },
     { value: 10, color: "wheel-slice-f" },
     { value:  2, color: "wheel-slice-c" },
-    { value:  2, color: "wheel-slice-e" },
+    { value:  5, color: "wheel-slice-e" },
     { value:  2, color: "wheel-slice-d" },
     { value:  3, color: "wheel-slice-b" },
   ],
   // Free-spins wheel weights (12 slots):
-  //   5:  3/12 (25%)  8:  3/12 (25%)  10: 3/12 (25%)
-  //   15: 2/12 (17%)  20: 1/12 (8%)
+  //   5:  2/12 (17%)  8:  3/12 (25%)  10: 3/12 (25%)
+  //   15: 2/12 (17%)  20: 1/12 (8%)   25: 1/12 (8%)
+  //   avg ~11.6 (was 9.9)
   freeSpinsWheel: [
-    { value:  5, color: "wheel-slice-a" },
+    { value:  8, color: "wheel-slice-a" },
     { value: 10, color: "wheel-slice-b" },
     { value:  8, color: "wheel-slice-c" },
     { value:  5, color: "wheel-slice-d" },
@@ -134,7 +133,7 @@ const CONFIG = {
     { value: 20, color: "wheel-slice-f" },
     { value:  5, color: "wheel-slice-c" },
     { value: 10, color: "wheel-slice-d" },
-    { value:  8, color: "wheel-slice-b" },
+    { value: 25, color: "wheel-slice-f" },
     { value: 15, color: "wheel-slice-e" },
   ],
 

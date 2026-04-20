@@ -3,15 +3,15 @@
 // strips and bonus wheels (see Phase 1 Monte Carlo in game.js).
 
 export const PAYTABLE = {
-  wolf:     [2,  9, 30],
-  bear:     [1,  4, 12],
-  deer:     [0,  2,  7],
-  fox:      [0,  1,  4],
-  rabbit:   [0,  0,  2],
+  wolf:     [1,  7, 25],
+  bear:     [0,  3,  9],
+  deer:     [0,  1,  5],
+  fox:      [0,  0,  3],
+  rabbit:   [0,  0,  1],
   mushroom: [0,  0,  1],
   acorn:    [0,  0,  1],
   leaf:     [0,  0,  1],
-  scatter:  [1,  3, 12], // paid on bet, anywhere on the grid
+  scatter:  [0,  2, 10], // paid on bet, anywhere on the grid
 };
 
 // Regular (non-wild, non-scatter) symbols evaluated for ways wins. Order
