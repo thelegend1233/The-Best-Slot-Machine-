@@ -151,7 +151,7 @@ const CONFIG = {
 // Set to your deployed Worker URL to run server-authoritative mode.
 // Leave empty (or remove the value) to play fully offline.
 // Example: "https://norminton-casino.yourhandle.workers.dev"
-const BACKEND_URL = "";
+const BACKEND_URL = "https://norminton-casino.nicholas-1e8.workers.dev";
 
 // Internal WS state — not meant to be referenced outside this section.
 let _ws = null;
