@@ -583,30 +583,31 @@ html, body {
 }
 
 .bonus-banner-sub {
-  margin-top: 10px;
+  margin-top: 12px;
   display: inline-block;
-  padding: 6px 20px 7px;
-  font-size: clamp(1rem, 4vw, 1.4rem);
+  padding: 10px 28px 11px;
+  font-size: clamp(1.1rem, 4.5vw, 1.6rem);
   font-weight: 700;
   letter-spacing: 0.24em;
   text-transform: uppercase;
   color: var(--accent-soft);
-  background: rgba(0, 0, 0, 0.55);
-  border: 1px solid rgba(242, 197, 106, 0.35);
-  border-radius: 8px;
-  text-shadow: 0 0 18px rgba(242, 197, 106, 0.6);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.75);
+  border: 2px solid rgba(242, 197, 106, 0.6);
+  border-radius: 10px;
+  text-shadow: 0 0 18px rgba(242, 197, 106, 0.8);
+  box-shadow: 0 0 24px rgba(242, 197, 106, 0.3), inset 0 0 12px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(6px);
 }
 
 .bonus-banner.show {
-  animation: bonus-banner-pop 2.4s cubic-bezier(0.2, 1, 0.3, 1) forwards;
+  animation: bonus-banner-pop 4.5s cubic-bezier(0.2, 1, 0.3, 1) forwards;
 }
 
 @keyframes bonus-banner-pop {
   0%   { transform: translate(-50%, -50%) scale(0) rotate(-8deg); opacity: 0; }
-  22%  { transform: translate(-50%, -50%) scale(1.12) rotate(2deg); opacity: 1; }
-  45%  { transform: translate(-50%, -50%) scale(1) rotate(0); }
-  85%  { opacity: 1; }
+  12%  { transform: translate(-50%, -50%) scale(1.12) rotate(2deg); opacity: 1; }
+  22%  { transform: translate(-50%, -50%) scale(1) rotate(0); }
+  80%  { opacity: 1; }
   100% { transform: translate(-50%, -50%) scale(1) rotate(0); opacity: 0; }
 }
 
@@ -958,4 +959,24 @@ body.bonus-active {
     radial-gradient(900px 600px at 0% 110%,   rgba(60,  80, 200, 0.22), transparent 60%),
     radial-gradient(900px 600px at 100% 100%, rgba(30,  20, 120, 0.45), transparent 60%),
     linear-gradient(180deg, #060c22 0%, #0d1440 100%);
+}
+
+/* Faint blue-gold glow pulses on every interactive/visual element during
+   the bonus round. Uses an animation so it breathes rather than sitting flat. */
+body.bonus-active .machine,
+body.bonus-active .cell,
+body.bonus-active .controls,
+body.bonus-active #spin-button,
+body.bonus-active .stepper-btn,
+body.bonus-active #buy-back-in-button,
+body.bonus-active .stats-row,
+body.bonus-active .bonus-indicator {
+  animation: bonus-glow-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes bonus-glow-pulse {
+  0%, 100% { filter: drop-shadow(0 0  6px rgba(100, 140, 255, 0.25))
+                      drop-shadow(0 0 14px rgba(242, 197, 106, 0.10)); }
+  50%       { filter: drop-shadow(0 0 12px rgba(100, 140, 255, 0.45))
+                      drop-shadow(0 0 28px rgba(242, 197, 106, 0.20)); }
 }

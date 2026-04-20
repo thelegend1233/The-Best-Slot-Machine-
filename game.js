@@ -822,7 +822,7 @@ async function performSpin() {
       autoAdvanceTimeoutId = setTimeout(() => {
         autoAdvanceTimeoutId = null;
         if (bonus.active && !spinInProgress) performSpin();
-      }, 1200);
+      }, 1700);
     }
   }
 }
@@ -1179,7 +1179,7 @@ function showBonusBanner(title, sub) {
   setTimeout(() => {
     banner.classList.remove("show");
     banner.hidden = true;
-  }, 2500);
+  }, 4500);
 }
 
 function updateBonusIndicator() {
