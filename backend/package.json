@@ -1,0 +1,11 @@
+{
+  "name": "norminton-casino-backend",
+  "version": "0.1.0",
+  "description": "Server-authoritative backend for Norminton Casino (Phase 2).",
+  "type": "module",
+  "private": true,
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test 'test/*.test.js'"
+  }
+}
