@@ -25,7 +25,7 @@ class_name = "Table"
 # Table"; required on first deploy.
 [[migrations]]
 tag = "v1"
-new_classes = ["Table"]
+new_sqlite_classes = ["Table"]
 
 [observability]
 enabled = true
