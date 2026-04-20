@@ -30,5 +30,15 @@ new_sqlite_classes = ["Table"]
 [observability]
 enabled = true
 
+# D1 spin log database.
+# 1. Run:  wrangler d1 create norminton-casino-db
+# 2. Copy the database_id from the output and paste it below.
+# 3. Run:  wrangler d1 execute norminton-casino-db --file=migrations/0001_spin_log.sql
+# 4. Run:  wrangler deploy
+[[d1_databases]]
+binding = "DB"
+database_name = "norminton-casino-db"
+database_id = "REPLACE_WITH_YOUR_DB_ID"
+
 [dev]
 port = 8787
