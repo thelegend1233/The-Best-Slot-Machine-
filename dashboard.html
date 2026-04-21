@@ -222,14 +222,21 @@
 
     ws.addEventListener("open", () => {
       ws.send(JSON.stringify({ type: "host-join" }));
-      statusEl.textContent = "Connected";
+      statusEl.textContent = "Connected — waiting for data…";
       statusEl.className = "status connected";
     });
 
     ws.addEventListener("message", (ev) => {
       let msg;
       try { msg = JSON.parse(ev.data); } catch { return; }
-      if (msg.type === "leaderboard") render(msg.players);
+      console.log("[dashboard] received:", msg.type, msg);
+      if (msg.type === "leaderboard") {
+        statusEl.textContent = "Connected";
+        render(msg.players);
+      } else if (msg.type === "error") {
+        statusEl.textContent = "Server error: " + msg.error;
+        statusEl.className = "status disconnected";
+      }
     });
 
     ws.addEventListener("close", () => {
