@@ -96,44 +96,82 @@ const CONFIG = {
   paySymbols: ["leaf", "acorn", "mushroom", "rabbit", "fox", "deer", "bear", "wolf"],
   // Bonus round: 3+ scatters trigger two wheels in sequence. Wheel 1 locks
   // in the multiplier for the whole round; wheel 2 locks in the number of
-  // free spins. Slices are listed in display order (slice 0 at top, going
-  // clockwise). Every slice is equally likely, so weighting is done by
-  // repeating values: the layouts below spread the jackpot slot (×25 / ×20)
-  // across the wheel so its neighbors are small values and it stays rare.
+  // free spins. Free spins use freeSpinReels (3 wilds/reel) so wheels are
+  // scaled down to keep total RTP near 93-94%. Run runMonteCarlo() to verify.
   //
-  // Multiplier wheel weights (12 slots).
-  //   ×3: 4/12 (33%)   ×5: 4/12 (33%)   ×10: 3/12 (25%)   ×20: 1/12 (8%)
-  //   avg ~6.8× — floor raised, ×2 removed
+  // Multiplier wheel: ×3 (4/12), ×5 (4/12), ×8 (3/12), ×12 (1/12) → avg ~5.25×
   multiplierWheel: [
     { value:  3, color: "wheel-slice-a" },
     { value:  5, color: "wheel-slice-b" },
     { value:  3, color: "wheel-slice-c" },
-    { value: 10, color: "wheel-slice-d" },
+    { value:  8, color: "wheel-slice-d" },
     { value:  5, color: "wheel-slice-e" },
     { value:  3, color: "wheel-slice-a" },
     { value:  5, color: "wheel-slice-b" },
-    { value: 20, color: "wheel-slice-f" },
+    { value: 12, color: "wheel-slice-f" },
     { value:  3, color: "wheel-slice-c" },
-    { value: 10, color: "wheel-slice-e" },
+    { value:  8, color: "wheel-slice-e" },
     { value:  5, color: "wheel-slice-d" },
-    { value: 10, color: "wheel-slice-b" },
+    { value:  8, color: "wheel-slice-b" },
   ],
-  // Free-spins wheel weights (12 slots):
-  //   10: 4/12 (33%)  15: 4/12 (33%)  20: 3/12 (25%)  25: 1/12 (8%)
-  //   avg ~15.4 — floor raised, 5 and 8 removed
+  // Free-spins wheel: 8 (4/12), 10 (4/12), 12 (3/12), 15 (1/12) → avg ~10.25
   freeSpinsWheel: [
-    { value: 10, color: "wheel-slice-a" },
-    { value: 15, color: "wheel-slice-b" },
-    { value: 10, color: "wheel-slice-c" },
-    { value: 20, color: "wheel-slice-d" },
-    { value: 15, color: "wheel-slice-e" },
-    { value: 10, color: "wheel-slice-a" },
-    { value: 15, color: "wheel-slice-b" },
-    { value: 25, color: "wheel-slice-f" },
-    { value: 10, color: "wheel-slice-c" },
-    { value: 20, color: "wheel-slice-d" },
-    { value: 15, color: "wheel-slice-e" },
-    { value: 20, color: "wheel-slice-b" },
+    { value:  8, color: "wheel-slice-a" },
+    { value: 10, color: "wheel-slice-b" },
+    { value:  8, color: "wheel-slice-c" },
+    { value: 12, color: "wheel-slice-d" },
+    { value: 10, color: "wheel-slice-e" },
+    { value:  8, color: "wheel-slice-a" },
+    { value: 10, color: "wheel-slice-b" },
+    { value: 15, color: "wheel-slice-f" },
+    { value:  8, color: "wheel-slice-c" },
+    { value: 12, color: "wheel-slice-d" },
+    { value: 10, color: "wheel-slice-e" },
+    { value: 12, color: "wheel-slice-b" },
+  ],
+  // Free-spin reel strips — 3 wilds per reel (vs 1 on base reels).
+  // Extra wilds replace leaf/acorn symbols spread across each strip.
+  freeSpinReels: [
+    // reel 0
+    [
+      "leaf","acorn","mushroom","rabbit","wild","fox","acorn","leaf",
+      "rabbit","mushroom","deer","leaf","acorn","wild","mushroom","fox",
+      "leaf","rabbit","acorn","bear","leaf","mushroom","fox","acorn",
+      "scatter","rabbit","leaf","deer","mushroom","wild","wolf","leaf",
+      "fox","rabbit","leaf",
+    ],
+    // reel 1
+    [
+      "wild","leaf","rabbit","mushroom","acorn","fox","leaf","rabbit",
+      "scatter","deer","mushroom","leaf","wild","acorn","rabbit","fox",
+      "leaf","mushroom","acorn","bear","rabbit","leaf","fox","mushroom",
+      "acorn","scatter","leaf","deer","rabbit","acorn","wild","leaf",
+      "fox","acorn","rabbit",
+    ],
+    // reel 2
+    [
+      "mushroom","wild","acorn","rabbit","leaf","mushroom","fox","acorn",
+      "scatter","rabbit","deer","mushroom","acorn","wild","leaf","rabbit",
+      "fox","mushroom","acorn","leaf","wolf","rabbit","mushroom","wild",
+      "acorn","fox","scatter","leaf","bear","mushroom","rabbit","acorn",
+      "leaf","fox","mushroom",
+    ],
+    // reel 3
+    [
+      "wild","rabbit","acorn","mushroom","leaf","acorn","fox","rabbit",
+      "scatter","mushroom","acorn","deer","rabbit","leaf","wild","mushroom",
+      "acorn","fox","leaf","rabbit","mushroom","bear","acorn","leaf",
+      "fox","rabbit","mushroom","scatter","acorn","leaf","deer","rabbit",
+      "mushroom","fox","wild",
+    ],
+    // reel 4
+    [
+      "wild","acorn","rabbit","mushroom","wild","fox","acorn","rabbit",
+      "leaf","mushroom","acorn","deer","leaf","rabbit","mushroom","wild",
+      "acorn","leaf","fox","rabbit","mushroom","acorn","leaf","bear",
+      "rabbit","fox","mushroom","acorn","leaf","scatter","rabbit","wolf",
+      "leaf","mushroom","acorn",
+    ],
   ],
 
   // Animation tuning
@@ -525,6 +563,10 @@ function spinAllReels() {
   return CONFIG.reels.map(spinReel);
 }
 
+function spinFreeReels() {
+  return CONFIG.freeSpinReels.map(spinReel);
+}
+
 // ---------- Payline evaluation (basic, step 3) ----------
 
 // 243-ways evaluator. For each paying symbol, find the longest leading run
@@ -659,14 +701,14 @@ function skipActiveSpin() {
 // bottom. Reels stop in cascade. The stop has a two-phase settle: first a
 // smooth decel to just past rest (overshoot), then a short bounce back,
 // giving a subtle "hit the stop" feel.
-function animateReels(targetGrid) {
+function animateReels(targetGrid, reels = CONFIG.reels) {
   return new Promise((resolve) => {
     const reelEls = Array.from(document.querySelectorAll(".reel"));
     let remaining = reelEls.length;
 
     reelEls.forEach((reelEl, reelIndex) => {
       const targetSymbols = targetGrid[reelIndex];
-      const reelStrip = CONFIG.reels[reelIndex];
+      const reelStrip = reels[reelIndex];
 
       // Strip layout: [buffer] [target0] [target1] [target2] [padding × N].
       // The buffer above the targets gives overshoot somewhere to land.
@@ -881,7 +923,7 @@ async function performSpin() {
       setDevButtonArmed(false);
     }
   } else {
-    grid = spinAllReels();
+    grid = isFreeSpin ? spinFreeReels() : spinAllReels();
     // Dev override: plant 3 scatters before evaluation.
     if (forceBonusNext && !isFreeSpin) {
       forceBonusNext = false;
@@ -895,7 +937,7 @@ async function performSpin() {
 
   spinInProgress = true;
   playSound("reelSpin");
-  await animateReels(grid);
+  await animateReels(grid, isFreeSpin ? CONFIG.freeSpinReels : CONFIG.reels);
   stopSound("reelSpin");
   spinInProgress = false;
 
@@ -1095,7 +1137,7 @@ function runMonteCarlo(totalSpins = 1_000_000) {
       const mult = multWheel[Math.floor(Math.random() * multWheel.length)].value;
       const spins = spinsWheel[Math.floor(Math.random() * spinsWheel.length)].value;
       for (let k = 0; k < spins; k++) {
-        const w = evaluateSpin(spinAllReels(), bet).totalWin * mult;
+        const w = evaluateSpin(spinFreeReels(), bet).totalWin * mult;
         won += w;
         bonusWon += w;
       }

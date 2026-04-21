@@ -20,7 +20,7 @@
 //   Client → { type:"spin", bet, token, isFree, multiplier }
 //   Server → { type:"result", grid, totalWin, balance, ..., commit, reveal }
 
-import { REELS } from "./engine/reels.js";
+import { REELS, FREE_SPIN_REELS } from "./engine/reels.js";
 import { evaluateSpin } from "./engine/evaluator.js";
 import { spinAllReels } from "./engine/spin.js";
 import { newCommit, rngFromPreimage, sha256Hex } from "./engine/rng.js";
@@ -280,7 +280,7 @@ export class Table {
 
     const { preimage, preimageHex, commitHex } = await newCommit();
     const random = rngFromPreimage(preimage);
-    const grid = spinAllReels(random, REELS);
+    const grid = spinAllReels(random, isFree ? FREE_SPIN_REELS : REELS);
     const result = evaluateSpin(grid, bet || 1);
 
     const baseWin = isFree ? result.totalWin * multiplier : result.totalWin;
