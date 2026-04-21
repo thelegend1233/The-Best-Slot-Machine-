@@ -1,19 +1,21 @@
 // Table Durable Object — one instance per table (keyed by the 4-letter code).
 // Owns the RNG, evaluator, player registry, and server-side balances.
 //
-// HTTP endpoints:
-//   POST /init              — called once by the Worker when creating a table.
-//   GET  /health            — liveness probe.
-//   POST /spin              — HTTP round-trip (curl / audit use).
-//   GET  /tables/:CODE/ws  — WebSocket upgrade (routed here by the Worker).
+// Storage keys:
+//   table:meta          — table config
+//   player:TOKEN        — session record (wiped on reset)
+//   alltime:NAME_KEY    — lifetime stats (survives resets)
 //
 // WebSocket protocol:
-//   Client → { type:"join",      displayName, token }
-//   Server → { type:"joined",    token, displayName, balance, buyIn, tableCode }
+//   Client → { type:"join",       displayName, token, buyIn }
+//   Server → { type:"joined",     token, displayName, balance, tableCode }
 //
 //   Client → { type:"host-join" }
-//   Server → { type:"leaderboard", players:[{displayName,balance,totalWagered,totalWon,totalSpins}] }
-//          (also broadcast to all host sockets after every spin)
+//   Server → { type:"leaderboard", session:[...], allTime:[...] }
+//            (also broadcast after every spin)
+//
+//   Client → { type:"host-reset" }
+//   Server → { type:"reset" }  (broadcast to all sockets)
 //
 //   Client → { type:"spin", bet, token, isFree, multiplier }
 //   Server → { type:"result", grid, totalWin, balance, ..., commit, reveal }
@@ -24,6 +26,10 @@ import { spinAllReels } from "./engine/spin.js";
 import { newCommit, rngFromPreimage, sha256Hex } from "./engine/rng.js";
 
 const MAX_NAME_LEN = 32;
+
+function atKey(displayName) {
+  return `alltime:${displayName.toLowerCase().slice(0, 32)}`;
+}
 
 export class Table {
   constructor(state, env) {
@@ -39,19 +45,17 @@ export class Table {
     }
 
     if (url.pathname === "/health") {
-      return json({ ok: true, version: "phase2.3" });
+      return json({ ok: true, version: "phase2.4" });
     }
 
     if (url.pathname === "/spin" && request.method === "POST") {
       return this.handleHttpSpin(request);
     }
 
-    // /tables/:CODE/ws — WebSocket upgrade.
     if (url.pathname.endsWith("/ws") && request.headers.get("Upgrade") === "websocket") {
       return this.handleWebSocketUpgrade();
     }
 
-    // Legacy /ws path from step 1b–1d.
     if (url.pathname === "/ws" && request.headers.get("Upgrade") === "websocket") {
       return this.handleWebSocketUpgrade();
     }
@@ -97,10 +101,12 @@ export class Table {
   async webSocketClose(_ws) {}
   async webSocketError(_ws) {}
 
+  // ── Host handlers ──────────────────────────────────────────────────────────
+
   async handleHostJoin(ws) {
     ws.serializeAttachment({ isHost: true });
-    const players = await this.getLeaderboard();
-    ws.send(JSON.stringify({ type: "leaderboard", players }));
+    const lb = await this.getLeaderboard();
+    ws.send(JSON.stringify({ type: "leaderboard", ...lb }));
   }
 
   async handleHostReset(ws) {
@@ -108,47 +114,69 @@ export class Table {
       ws.send(JSON.stringify({ type: "error", error: "not authorized" }));
       return;
     }
-    // Wipe all player records.
+    // Wipe session records only — alltime: records survive.
     const entries = await this.state.storage.list({ prefix: "player:" });
     const keys = [...entries.keys()];
     if (keys.length) await this.state.storage.delete(keys);
 
-    // Broadcast reset to every connected socket so active players reload.
     const resetMsg = JSON.stringify({ type: "reset" });
     for (const s of this.state.getWebSockets()) {
       try { s.send(resetMsg); } catch {}
     }
   }
 
+  // ── Leaderboard ────────────────────────────────────────────────────────────
+
   async getLeaderboard() {
-    const entries = await this.state.storage.list({ prefix: "player:" });
-    const players = [];
-    for (const [, data] of entries) {
-      players.push({
-        displayName: data.displayName,
-        balance: data.balance,
-        totalWagered: data.totalWagered || 0,
-        totalWon: data.totalWon || 0,
-        totalSpins: data.totalSpins || 0,
-        joinedAt: data.joinedAt,
+    // Current session
+    const sessionEntries = await this.state.storage.list({ prefix: "player:" });
+    const session = [];
+    for (const [, d] of sessionEntries) {
+      session.push({
+        displayName:  d.displayName,
+        balance:      d.balance,
+        buyIn:        d.buyIn || 0,
+        totalWagered: d.totalWagered || 0,
+        totalWon:     d.totalWon || 0,
+        totalSpins:   d.totalSpins || 0,
       });
     }
-    return players.sort((a, b) => b.balance - a.balance);
+    session.sort((a, b) => b.balance - a.balance);
+
+    // All-time history
+    const atEntries = await this.state.storage.list({ prefix: "alltime:" });
+    const allTime = [];
+    for (const [, d] of atEntries) {
+      allTime.push({
+        displayName:      d.displayName,
+        sessionsPlayed:   d.sessionsPlayed || 0,
+        allTimeBuyIn:     d.allTimeBuyIn || 0,
+        allTimeWagered:   d.allTimeWagered || 0,
+        allTimeWon:       d.allTimeWon || 0,
+      });
+    }
+    // Sort by all-time net (won - wagered), best first.
+    allTime.sort((a, b) =>
+      (b.allTimeWon - b.allTimeWagered) - (a.allTimeWon - a.allTimeWagered)
+    );
+
+    return { session, allTime };
   }
 
   async broadcastLeaderboard() {
     const sockets = this.state.getWebSockets();
     const hostSockets = sockets.filter(ws => ws.deserializeAttachment()?.isHost);
     if (!hostSockets.length) return;
-    const players = await this.getLeaderboard();
-    const msg = JSON.stringify({ type: "leaderboard", players });
+    const lb = await this.getLeaderboard();
+    const msg = JSON.stringify({ type: "leaderboard", ...lb });
     for (const ws of hostSockets) ws.send(msg);
   }
+
+  // ── Player join ────────────────────────────────────────────────────────────
 
   async handleJoin(ws, msg) {
     let meta = await this.state.storage.get("table:meta");
     if (!meta) {
-      // Auto-create the permanent table on first join.
       meta = { code: "default", hostToken: null, buyIn: 1000, status: "open", createdAt: Date.now() };
       await this.state.storage.put("table:meta", meta);
     }
@@ -157,19 +185,36 @@ export class Table {
     let token = typeof msg.token === "string" && msg.token.length > 0 ? msg.token : null;
 
     let playerData = token ? await this.state.storage.get(`player:${token}`) : null;
+    const isNew = !playerData;
 
-    if (!playerData) {
+    if (isNew) {
       token = crypto.randomUUID();
       const startBalance = Number(msg.buyIn) > 0 ? Number(msg.buyIn) : meta.buyIn;
-      playerData = { displayName, joinedAt: Date.now(), balance: startBalance };
+      playerData = { displayName, joinedAt: Date.now(), balance: startBalance, buyIn: startBalance };
     } else {
       playerData.displayName = displayName;
     }
 
+    // Update all-time record (survives resets).
+    const key = atKey(displayName);
+    const at = await this.state.storage.get(key) || {
+      displayName,
+      firstSeen: playerData.joinedAt,
+      sessionsPlayed: 0,
+      allTimeBuyIn: 0,
+      allTimeWagered: 0,
+      allTimeWon: 0,
+    };
+    at.displayName = displayName;
+    if (isNew) {
+      at.sessionsPlayed++;
+      at.allTimeBuyIn = Math.round((at.allTimeBuyIn + playerData.balance) * 100) / 100;
+    }
+    await this.state.storage.put(key, at);
+
     await this.state.storage.put(`player:${token}`, playerData);
     ws.serializeAttachment({ token });
 
-    // D1 upsert (non-fatal).
     if (this.env.DB) {
       try {
         await this.env.DB.prepare(`
@@ -189,6 +234,8 @@ export class Table {
       tableCode: meta.code,
     }));
   }
+
+  // ── Spin ───────────────────────────────────────────────────────────────────
 
   async handleWsSpin(ws, msg) {
     const { token } = ws.deserializeAttachment() ?? {};
@@ -219,31 +266,41 @@ export class Table {
   }
 
   async computeSpin(bet, playerToken, isFree, multiplier) {
-    // Load player and enforce balance (online mode only — playerToken is null for legacy HTTP).
     let playerData = null;
     if (playerToken) {
       playerData = await this.state.storage.get(`player:${playerToken}`);
       if (!playerData) return { error: "player not found" };
       if (!isFree && playerData.balance < bet) return { error: "insufficient balance" };
       if (!isFree) {
-        playerData.balance = Math.round((playerData.balance - bet) * 100) / 100;
+        playerData.balance     = Math.round((playerData.balance - bet) * 100) / 100;
         playerData.totalWagered = Math.round(((playerData.totalWagered || 0) + bet) * 100) / 100;
-        playerData.totalSpins = (playerData.totalSpins || 0) + 1;
+        playerData.totalSpins   = (playerData.totalSpins || 0) + 1;
       }
     }
 
     const { preimage, preimageHex, commitHex } = await newCommit();
     const random = rngFromPreimage(preimage);
     const grid = spinAllReels(random, REELS);
-    const result = evaluateSpin(grid, bet || 1); // bet=0 for free spins; use 1 for evaluator
+    const result = evaluateSpin(grid, bet || 1);
 
-    // Free spins pass the actual bet for win calculation via multiplier.
     const baseWin = isFree ? result.totalWin * multiplier : result.totalWin;
 
     if (playerData) {
       playerData.balance = Math.round((playerData.balance + baseWin) * 100) / 100;
-      if (baseWin > 0) playerData.totalWon = Math.round(((playerData.totalWon || 0) + baseWin) * 100) / 100;
+      if (baseWin > 0)
+        playerData.totalWon = Math.round(((playerData.totalWon || 0) + baseWin) * 100) / 100;
       await this.state.storage.put(`player:${playerToken}`, playerData);
+
+      // Update all-time record.
+      const key = atKey(playerData.displayName);
+      const at = await this.state.storage.get(key);
+      if (at) {
+        if (!isFree)
+          at.allTimeWagered = Math.round(((at.allTimeWagered || 0) + bet) * 100) / 100;
+        if (baseWin > 0)
+          at.allTimeWon = Math.round(((at.allTimeWon || 0) + baseWin) * 100) / 100;
+        await this.state.storage.put(key, at);
+      }
     }
 
     const meta = await this.state.storage.get("table:meta");

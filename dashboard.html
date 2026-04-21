@@ -50,8 +50,7 @@
     }
     .status::before {
       content: "";
-      width: 7px;
-      height: 7px;
+      width: 7px; height: 7px;
       border-radius: 50%;
       background: #8a9bb0;
       flex-shrink: 0;
@@ -61,16 +60,46 @@
     .status.disconnected { color: #e05252; }
     .status.disconnected::before { background: #e05252; }
 
-    .header-stats {
+    .header-right {
       margin-left: auto;
       display: flex;
+      align-items: center;
       gap: 2rem;
-      text-align: right;
     }
-    .stat-block { }
+
+    .header-stats { display: flex; gap: 2rem; text-align: right; }
     .stat-block .val { font-size: 1.5rem; font-weight: 700; }
     .stat-block .lbl { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: #8a9bb0; margin-top: 0.1rem; }
 
+    .reset-btn {
+      padding: 0.5rem 1.1rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #fff;
+      background: #8b1a1a;
+      border: 1px solid #b02020;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .reset-btn:hover { background: #a01e1e; }
+    .reset-btn:active { background: #6e1414; }
+
+    /* ── Section ── */
+    .section { margin-bottom: 2.5rem; }
+    .section-title {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #8a9bb0;
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #1e2d3d;
+    }
+
+    /* ── Tables ── */
     .table-wrap { overflow-x: auto; }
 
     table { width: 100%; border-collapse: collapse; }
@@ -105,34 +134,17 @@
 
     .empty-row td {
       text-align: center;
-      padding: 3.5rem 1rem;
+      padding: 2.5rem 1rem;
       color: #8a9bb0;
       font-style: italic;
     }
 
     .updated {
-      margin-top: 1rem;
+      margin-top: 0.75rem;
       font-size: 0.72rem;
       color: #8a9bb0;
       text-align: right;
     }
-
-    .reset-btn {
-      margin-left: auto;
-      padding: 0.5rem 1.1rem;
-      font-size: 0.8rem;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: #fff;
-      background: #8b1a1a;
-      border: 1px solid #b02020;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-    .reset-btn:hover { background: #a01e1e; }
-    .reset-btn:active { background: #6e1414; }
   </style>
 </head>
 <body>
@@ -143,95 +155,145 @@
     <h1>Norminton Casino — Dashboard</h1>
     <p class="status" id="status">Connecting…</p>
   </div>
-  <button class="reset-btn" id="reset-btn">Reset Session</button>
-  <div class="header-stats">
-    <div class="stat-block">
-      <div class="val" id="stat-players">0</div>
-      <div class="lbl">Players</div>
+  <div class="header-right">
+    <div class="header-stats">
+      <div class="stat-block">
+        <div class="val" id="stat-players">0</div>
+        <div class="lbl">In Session</div>
+      </div>
+      <div class="stat-block">
+        <div class="val" id="stat-spins">0</div>
+        <div class="lbl">Session Spins</div>
+      </div>
+      <div class="stat-block">
+        <div class="val" id="stat-wagered">0.00</div>
+        <div class="lbl">Session Wagered</div>
+      </div>
     </div>
-    <div class="stat-block">
-      <div class="val" id="stat-spins">0</div>
-      <div class="lbl">Total Spins</div>
-    </div>
-    <div class="stat-block">
-      <div class="val" id="stat-wagered">0</div>
-      <div class="lbl">Wagered</div>
-    </div>
+    <button class="reset-btn" id="reset-btn">Reset Session</button>
   </div>
 </header>
 
-<div class="table-wrap">
-  <table>
-    <thead>
-      <tr>
-        <th class="rank">#</th>
-        <th>Player</th>
-        <th class="r">Balance</th>
-        <th class="r">Net</th>
-        <th class="r">Wagered</th>
-        <th class="r">Won</th>
-        <th class="r">Spins</th>
-      </tr>
-    </thead>
-    <tbody id="leaderboard-body">
-      <tr class="empty-row"><td colspan="7">No players yet…</td></tr>
-    </tbody>
-  </table>
+<!-- Current Session -->
+<div class="section">
+  <div class="section-title">Current Session</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="rank r">#</th>
+          <th>Player</th>
+          <th class="r">Balance</th>
+          <th class="r">Session Net</th>
+          <th class="r">Wagered</th>
+          <th class="r">Won</th>
+          <th class="r">Spins</th>
+        </tr>
+      </thead>
+      <tbody id="session-body">
+        <tr class="empty-row"><td colspan="7">No players in this session yet…</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="updated" id="updated"></p>
 </div>
-<p class="updated" id="updated"></p>
+
+<!-- All-Time History -->
+<div class="section">
+  <div class="section-title">All-Time History</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="rank r">#</th>
+          <th>Player</th>
+          <th class="r">Sessions</th>
+          <th class="r">All-Time Net</th>
+          <th class="r">Total Wagered</th>
+          <th class="r">Total Won</th>
+        </tr>
+      </thead>
+      <tbody id="alltime-body">
+        <tr class="empty-row"><td colspan="6">No history yet…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
 
 <script>
   const BACKEND_URL = "https://norminton-casino.nicholas-1e8.workers.dev";
-  const STARTING_BALANCE = 1000;
 
-  const statusEl  = document.getElementById("status");
-  const bodyEl    = document.getElementById("leaderboard-body");
-  const updatedEl = document.getElementById("updated");
+  const statusEl   = document.getElementById("status");
+  const sessionEl  = document.getElementById("session-body");
+  const allTimeEl  = document.getElementById("alltime-body");
+  const updatedEl  = document.getElementById("updated");
 
-  function fmt(n) { return Number(n).toFixed(2); }
+  function fmt(n) { return Number(n || 0).toFixed(2); }
 
-  function netClass(n) {
-    if (n > 0.005) return "positive";
-    if (n < -0.005) return "negative";
-    return "neutral";
+  function netCell(n) {
+    const sign = n > 0.005 ? "+" : "";
+    const cls  = n > 0.005 ? "positive" : n < -0.005 ? "negative" : "neutral";
+    return `<td class="r ${cls}">${sign}${fmt(n)}</td>`;
   }
 
   function esc(s) {
     return String(s)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 
-  function render(players) {
-    document.getElementById("stat-players").textContent = players.length;
+  function renderSession(players) {
     const totalSpins   = players.reduce((s, p) => s + (p.totalSpins || 0), 0);
     const totalWagered = players.reduce((s, p) => s + (p.totalWagered || 0), 0);
-    document.getElementById("stat-spins").textContent   = totalSpins.toLocaleString();
-    document.getElementById("stat-wagered").textContent = fmt(totalWagered);
+    document.getElementById("stat-players").textContent  = players.length;
+    document.getElementById("stat-spins").textContent    = totalSpins.toLocaleString();
+    document.getElementById("stat-wagered").textContent  = fmt(totalWagered);
 
     if (!players.length) {
-      bodyEl.innerHTML = '<tr class="empty-row"><td colspan="7">No players yet…</td></tr>';
+      sessionEl.innerHTML = '<tr class="empty-row"><td colspan="7">No players in this session yet…</td></tr>';
       return;
     }
 
-    bodyEl.innerHTML = players.map((p, i) => {
-      const net = (p.balance || 0) - STARTING_BALANCE;
-      const nc  = netClass(net);
-      const sign = net > 0.005 ? "+" : "";
+    sessionEl.innerHTML = players.map((p, i) => {
+      const net = (p.balance || 0) - (p.buyIn || 0);
       return `<tr>
         <td class="rank r">${i + 1}</td>
         <td>${esc(p.displayName)}</td>
         <td class="r">${fmt(p.balance)}</td>
-        <td class="r ${nc}">${sign}${fmt(net)}</td>
+        ${netCell(net)}
         <td class="r">${fmt(p.totalWagered)}</td>
         <td class="r">${fmt(p.totalWon)}</td>
         <td class="r">${(p.totalSpins || 0).toLocaleString()}</td>
       </tr>`;
     }).join("");
 
-    updatedEl.textContent = "Last updated " + new Date().toLocaleTimeString();
+    updatedEl.textContent = "Updated " + new Date().toLocaleTimeString();
+  }
+
+  function renderAllTime(players) {
+    if (!players.length) {
+      allTimeEl.innerHTML = '<tr class="empty-row"><td colspan="6">No history yet…</td></tr>';
+      return;
+    }
+
+    allTimeEl.innerHTML = players.map((p, i) => {
+      const net = (p.allTimeWon || 0) - (p.allTimeWagered || 0);
+      return `<tr>
+        <td class="rank r">${i + 1}</td>
+        <td>${esc(p.displayName)}</td>
+        <td class="r">${p.sessionsPlayed || 0}</td>
+        ${netCell(net)}
+        <td class="r">${fmt(p.allTimeWagered)}</td>
+        <td class="r">${fmt(p.allTimeWon)}</td>
+      </tr>`;
+    }).join("");
+  }
+
+  function onLeaderboard(msg) {
+    statusEl.textContent = "Connected";
+    statusEl.className = "status connected";
+    renderSession(msg.session || []);
+    renderAllTime(msg.allTime || []);
   }
 
   let _ws = null;
@@ -257,12 +319,9 @@
       let msg;
       try { msg = JSON.parse(ev.data); } catch { return; }
       console.log("[dashboard] received:", msg.type, msg);
-      if (msg.type === "leaderboard") {
-        statusEl.textContent = "Connected";
-        render(msg.players);
-      } else if (msg.type === "reset") {
-        render([]);
-      } else if (msg.type === "error") {
+      if (msg.type === "leaderboard") onLeaderboard(msg);
+      else if (msg.type === "reset")  { renderSession([]); renderAllTime([]); }
+      else if (msg.type === "error")  {
         statusEl.textContent = "Server error: " + msg.error;
         statusEl.className = "status disconnected";
       }
