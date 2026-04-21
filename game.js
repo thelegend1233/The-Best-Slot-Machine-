@@ -102,39 +102,38 @@ const CONFIG = {
   // across the wheel so its neighbors are small values and it stays rare.
   //
   // Multiplier wheel weights (12 slots).
-  //   ×2: 6/12 (50%)   ×3: 3/12 (25%)   ×5: 2/12 (17%)   ×10: 1/12 (8%)
-  //   avg ~3.4× (was 2.9×)
+  //   ×3: 4/12 (33%)   ×5: 4/12 (33%)   ×10: 3/12 (25%)   ×20: 1/12 (8%)
+  //   avg ~6.8× — floor raised, ×2 removed
   multiplierWheel: [
-    { value:  2, color: "wheel-slice-a" },
-    { value:  3, color: "wheel-slice-b" },
-    { value:  2, color: "wheel-slice-c" },
-    { value:  5, color: "wheel-slice-d" },
-    { value:  3, color: "wheel-slice-e" },
-    { value:  2, color: "wheel-slice-a" },
-    { value:  2, color: "wheel-slice-b" },
-    { value: 10, color: "wheel-slice-f" },
-    { value:  2, color: "wheel-slice-c" },
+    { value:  3, color: "wheel-slice-a" },
+    { value:  5, color: "wheel-slice-b" },
+    { value:  3, color: "wheel-slice-c" },
+    { value: 10, color: "wheel-slice-d" },
     { value:  5, color: "wheel-slice-e" },
-    { value:  2, color: "wheel-slice-d" },
-    { value:  3, color: "wheel-slice-b" },
+    { value:  3, color: "wheel-slice-a" },
+    { value:  5, color: "wheel-slice-b" },
+    { value: 20, color: "wheel-slice-f" },
+    { value:  3, color: "wheel-slice-c" },
+    { value: 10, color: "wheel-slice-e" },
+    { value:  5, color: "wheel-slice-d" },
+    { value: 10, color: "wheel-slice-b" },
   ],
   // Free-spins wheel weights (12 slots):
-  //   5:  2/12 (17%)  8:  3/12 (25%)  10: 3/12 (25%)
-  //   15: 2/12 (17%)  20: 1/12 (8%)   25: 1/12 (8%)
-  //   avg ~11.6 (was 9.9)
+  //   10: 4/12 (33%)  15: 4/12 (33%)  20: 3/12 (25%)  25: 1/12 (8%)
+  //   avg ~15.4 — floor raised, 5 and 8 removed
   freeSpinsWheel: [
-    { value:  8, color: "wheel-slice-a" },
-    { value: 10, color: "wheel-slice-b" },
-    { value:  8, color: "wheel-slice-c" },
-    { value:  5, color: "wheel-slice-d" },
+    { value: 10, color: "wheel-slice-a" },
+    { value: 15, color: "wheel-slice-b" },
+    { value: 10, color: "wheel-slice-c" },
+    { value: 20, color: "wheel-slice-d" },
     { value: 15, color: "wheel-slice-e" },
-    { value:  8, color: "wheel-slice-a" },
-    { value: 10, color: "wheel-slice-b" },
-    { value: 20, color: "wheel-slice-f" },
-    { value:  5, color: "wheel-slice-c" },
-    { value: 10, color: "wheel-slice-d" },
+    { value: 10, color: "wheel-slice-a" },
+    { value: 15, color: "wheel-slice-b" },
     { value: 25, color: "wheel-slice-f" },
+    { value: 10, color: "wheel-slice-c" },
+    { value: 20, color: "wheel-slice-d" },
     { value: 15, color: "wheel-slice-e" },
+    { value: 20, color: "wheel-slice-b" },
   ],
 
   // Animation tuning
