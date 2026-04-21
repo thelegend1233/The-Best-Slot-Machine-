@@ -219,10 +219,14 @@ function showPlayerByline() {
 // Returns a Promise that resolves to the buy-in amount the player chose.
 function promptBuyIn() {
   return new Promise((resolve) => {
+    const ac         = new AbortController();
+    const { signal } = ac;
     const overlay    = document.getElementById("buyin-prompt");
     const input      = document.getElementById("buyin-input");
     const submitBtn  = document.getElementById("buyin-submit");
     const optionBtns = document.querySelectorAll(".buyin-option");
+    input.value = "";
+    optionBtns.forEach((b) => b.classList.remove("selected"));
     overlay.hidden = false;
 
     let selectedAmount = null;
@@ -233,24 +237,25 @@ function promptBuyIn() {
         btn.classList.add("selected");
         selectedAmount = Number(btn.dataset.amount);
         input.value = "";
-      });
+      }, { signal });
     });
 
     input.addEventListener("input", () => {
       optionBtns.forEach((b) => b.classList.remove("selected"));
       selectedAmount = null;
-    });
+    }, { signal });
 
     function submit() {
       const custom = Number(input.value);
       const amount = selectedAmount || (custom > 0 ? custom : null);
       if (!amount) return;
       overlay.hidden = true;
+      ac.abort(); // removes all listeners above in one shot
       resolve(amount);
     }
 
-    submitBtn.addEventListener("click", submit, { once: true });
-    input.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+    submitBtn.addEventListener("click", submit, { signal });
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); }, { signal });
   });
 }
 
