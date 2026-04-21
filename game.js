@@ -89,7 +89,7 @@ const CONFIG = {
   },
 
   // Betting options
-  betOptions: [0.25, 0.5, 1, 2, 5],
+  betOptions: [0.25, 0.5, 1, 2, 5, 10, 20, 50, 100],
   startingBalance: 1000,
   waysCount: 243,
   // Regular (non-wild, non-scatter) symbols evaluated for ways wins.
