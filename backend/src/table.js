@@ -8,9 +8,12 @@
 //   GET  /tables/:CODE/ws  — WebSocket upgrade (routed here by the Worker).
 //
 // WebSocket protocol:
-//   Client → { type:"join",   displayName, token }
-//   Server → { type:"joined", token, displayName, balance, buyIn, tableCode }
-//         or { type:"error",  error:"table not found" }
+//   Client → { type:"join",      displayName, token }
+//   Server → { type:"joined",    token, displayName, balance, buyIn, tableCode }
+//
+//   Client → { type:"host-join" }
+//   Server → { type:"leaderboard", players:[{displayName,balance,totalWagered,totalWon,totalSpins}] }
+//          (also broadcast to all host sockets after every spin)
 //
 //   Client → { type:"spin", bet, token, isFree, multiplier }
 //   Server → { type:"result", grid, totalWin, balance, ..., commit, reveal }
@@ -83,14 +86,46 @@ export class Table {
       return;
     }
 
-    if (msg.type === "join") { await this.handleJoin(ws, msg); return; }
-    if (msg.type === "spin") { await this.handleWsSpin(ws, msg); return; }
+    if (msg.type === "join")      { await this.handleJoin(ws, msg);     return; }
+    if (msg.type === "host-join") { await this.handleHostJoin(ws);       return; }
+    if (msg.type === "spin")      { await this.handleWsSpin(ws, msg);    return; }
 
     ws.send(JSON.stringify({ type: "error", error: `unknown type: ${msg.type}` }));
   }
 
   async webSocketClose(_ws) {}
   async webSocketError(_ws) {}
+
+  async handleHostJoin(ws) {
+    ws.serializeAttachment({ isHost: true });
+    const players = await this.getLeaderboard();
+    ws.send(JSON.stringify({ type: "leaderboard", players }));
+  }
+
+  async getLeaderboard() {
+    const entries = await this.state.storage.list({ prefix: "player:" });
+    const players = [];
+    for (const [, data] of entries) {
+      players.push({
+        displayName: data.displayName,
+        balance: data.balance,
+        totalWagered: data.totalWagered || 0,
+        totalWon: data.totalWon || 0,
+        totalSpins: data.totalSpins || 0,
+        joinedAt: data.joinedAt,
+      });
+    }
+    return players.sort((a, b) => b.balance - a.balance);
+  }
+
+  async broadcastLeaderboard() {
+    const sockets = this.state.getWebSockets();
+    const hostSockets = sockets.filter(ws => ws.deserializeAttachment()?.isHost);
+    if (!hostSockets.length) return;
+    const players = await this.getLeaderboard();
+    const msg = JSON.stringify({ type: "leaderboard", players });
+    for (const ws of hostSockets) ws.send(msg);
+  }
 
   async handleJoin(ws, msg) {
     let meta = await this.state.storage.get("table:meta");
@@ -171,7 +206,11 @@ export class Table {
       playerData = await this.state.storage.get(`player:${playerToken}`);
       if (!playerData) return { error: "player not found" };
       if (!isFree && playerData.balance < bet) return { error: "insufficient balance" };
-      if (!isFree) playerData.balance = Math.round((playerData.balance - bet) * 100) / 100;
+      if (!isFree) {
+        playerData.balance = Math.round((playerData.balance - bet) * 100) / 100;
+        playerData.totalWagered = Math.round(((playerData.totalWagered || 0) + bet) * 100) / 100;
+        playerData.totalSpins = (playerData.totalSpins || 0) + 1;
+      }
     }
 
     const { preimage, preimageHex, commitHex } = await newCommit();
@@ -184,6 +223,7 @@ export class Table {
 
     if (playerData) {
       playerData.balance = Math.round((playerData.balance + baseWin) * 100) / 100;
+      if (baseWin > 0) playerData.totalWon = Math.round(((playerData.totalWon || 0) + baseWin) * 100) / 100;
       await this.state.storage.put(`player:${playerToken}`, playerData);
     }
 
@@ -209,6 +249,8 @@ export class Table {
         ).run();
       } catch (err) { console.error("D1 spin write:", err.message); }
     }
+
+    this.broadcastLeaderboard().catch(() => {});
 
     return {
       bet: isFree ? 0 : bet,

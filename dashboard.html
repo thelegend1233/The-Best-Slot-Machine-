@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Norminton Casino — Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d1b2a;
+      color: #e8dcc8;
+      font-family: system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      padding: 2rem 1.5rem;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid #1e2d3d;
+    }
+
+    .brand-mark {
+      width: 2.75rem;
+      height: 2.75rem;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #b8860b, #daa520);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #0d1b2a;
+      flex-shrink: 0;
+    }
+
+    .header-text h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: 0.02em; }
+
+    .status {
+      font-size: 0.78rem;
+      margin-top: 0.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: #8a9bb0;
+    }
+    .status::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #8a9bb0;
+      flex-shrink: 0;
+    }
+    .status.connected { color: #4caf50; }
+    .status.connected::before { background: #4caf50; }
+    .status.disconnected { color: #e05252; }
+    .status.disconnected::before { background: #e05252; }
+
+    .header-stats {
+      margin-left: auto;
+      display: flex;
+      gap: 2rem;
+      text-align: right;
+    }
+    .stat-block { }
+    .stat-block .val { font-size: 1.5rem; font-weight: 700; }
+    .stat-block .lbl { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: #8a9bb0; margin-top: 0.1rem; }
+
+    .table-wrap { overflow-x: auto; }
+
+    table { width: 100%; border-collapse: collapse; }
+
+    th {
+      text-align: left;
+      padding: 0.6rem 1rem;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #8a9bb0;
+      border-bottom: 1px solid #1e2d3d;
+      white-space: nowrap;
+    }
+    th.r { text-align: right; }
+
+    td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #121f2d;
+      font-size: 0.92rem;
+      white-space: nowrap;
+    }
+    td.r { text-align: right; font-variant-numeric: tabular-nums; }
+
+    tr:hover td { background: #131f2e; }
+
+    .rank { color: #8a9bb0; font-size: 0.8rem; width: 2rem; }
+
+    .positive { color: #4caf50; font-weight: 600; }
+    .negative { color: #e05252; font-weight: 600; }
+    .neutral  { color: #8a9bb0; }
+
+    .empty-row td {
+      text-align: center;
+      padding: 3.5rem 1rem;
+      color: #8a9bb0;
+      font-style: italic;
+    }
+
+    .updated {
+      margin-top: 1rem;
+      font-size: 0.72rem;
+      color: #8a9bb0;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand-mark">N</div>
+  <div class="header-text">
+    <h1>Norminton Casino — Dashboard</h1>
+    <p class="status" id="status">Connecting…</p>
+  </div>
+  <div class="header-stats">
+    <div class="stat-block">
+      <div class="val" id="stat-players">0</div>
+      <div class="lbl">Players</div>
+    </div>
+    <div class="stat-block">
+      <div class="val" id="stat-spins">0</div>
+      <div class="lbl">Total Spins</div>
+    </div>
+    <div class="stat-block">
+      <div class="val" id="stat-wagered">0</div>
+      <div class="lbl">Wagered</div>
+    </div>
+  </div>
+</header>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th class="rank">#</th>
+        <th>Player</th>
+        <th class="r">Balance</th>
+        <th class="r">Net</th>
+        <th class="r">Wagered</th>
+        <th class="r">Won</th>
+        <th class="r">Spins</th>
+      </tr>
+    </thead>
+    <tbody id="leaderboard-body">
+      <tr class="empty-row"><td colspan="7">No players yet…</td></tr>
+    </tbody>
+  </table>
+</div>
+<p class="updated" id="updated"></p>
+
+<script>
+  const BACKEND_URL = "https://norminton-casino.nicholas-1e8.workers.dev";
+  const STARTING_BALANCE = 1000;
+
+  const statusEl  = document.getElementById("status");
+  const bodyEl    = document.getElementById("leaderboard-body");
+  const updatedEl = document.getElementById("updated");
+
+  function fmt(n) { return Number(n).toFixed(2); }
+
+  function netClass(n) {
+    if (n > 0.005) return "positive";
+    if (n < -0.005) return "negative";
+    return "neutral";
+  }
+
+  function esc(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function render(players) {
+    document.getElementById("stat-players").textContent = players.length;
+    const totalSpins   = players.reduce((s, p) => s + (p.totalSpins || 0), 0);
+    const totalWagered = players.reduce((s, p) => s + (p.totalWagered || 0), 0);
+    document.getElementById("stat-spins").textContent   = totalSpins.toLocaleString();
+    document.getElementById("stat-wagered").textContent = fmt(totalWagered);
+
+    if (!players.length) {
+      bodyEl.innerHTML = '<tr class="empty-row"><td colspan="7">No players yet…</td></tr>';
+      return;
+    }
+
+    bodyEl.innerHTML = players.map((p, i) => {
+      const net = (p.balance || 0) - STARTING_BALANCE;
+      const nc  = netClass(net);
+      const sign = net > 0.005 ? "+" : "";
+      return `<tr>
+        <td class="rank r">${i + 1}</td>
+        <td>${esc(p.displayName)}</td>
+        <td class="r">${fmt(p.balance)}</td>
+        <td class="r ${nc}">${sign}${fmt(net)}</td>
+        <td class="r">${fmt(p.totalWagered)}</td>
+        <td class="r">${fmt(p.totalWon)}</td>
+        <td class="r">${(p.totalSpins || 0).toLocaleString()}</td>
+      </tr>`;
+    }).join("");
+
+    updatedEl.textContent = "Last updated " + new Date().toLocaleTimeString();
+  }
+
+  function connect() {
+    const wsUrl = BACKEND_URL.replace(/^http/, "ws").replace(/\/?$/, "") + "/ws";
+    const ws = new WebSocket(wsUrl);
+
+    ws.addEventListener("open", () => {
+      ws.send(JSON.stringify({ type: "host-join" }));
+      statusEl.textContent = "Connected";
+      statusEl.className = "status connected";
+    });
+
+    ws.addEventListener("message", (ev) => {
+      let msg;
+      try { msg = JSON.parse(ev.data); } catch { return; }
+      if (msg.type === "leaderboard") render(msg.players);
+    });
+
+    ws.addEventListener("close", () => {
+      statusEl.textContent = "Disconnected — reconnecting…";
+      statusEl.className = "status disconnected";
+      setTimeout(connect, 3000);
+    });
+
+    ws.addEventListener("error", () => {
+      statusEl.textContent = "Connection error";
+      statusEl.className = "status disconnected";
+    });
+  }
+
+  connect();
+</script>
+</body>
+</html>
