@@ -1334,6 +1334,11 @@ function buyBackIn() {
 function initLobby() {
   document.querySelector(".machine").hidden = true;
   document.getElementById("lobby").hidden = false;
+
+  // Host panel only visible at ?host=1 — players see only the join form.
+  const isHost = new URLSearchParams(window.location.search).has("host");
+  document.getElementById("create-table-btn").closest("section").hidden = !isHost;
+  document.querySelector(".lobby-divider").hidden = !isHost;
   document.getElementById("create-table-btn").addEventListener("click", createTable);
   document.getElementById("join-table-btn").addEventListener("click", joinTable);
   document.getElementById("join-code-input").addEventListener("keydown", (e) => {
