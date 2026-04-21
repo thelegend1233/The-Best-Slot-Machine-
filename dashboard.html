@@ -116,6 +116,23 @@
       color: #8a9bb0;
       text-align: right;
     }
+
+    .reset-btn {
+      margin-left: auto;
+      padding: 0.5rem 1.1rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #fff;
+      background: #8b1a1a;
+      border: 1px solid #b02020;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .reset-btn:hover { background: #a01e1e; }
+    .reset-btn:active { background: #6e1414; }
   </style>
 </head>
 <body>
@@ -126,6 +143,7 @@
     <h1>Norminton Casino — Dashboard</h1>
     <p class="status" id="status">Connecting…</p>
   </div>
+  <button class="reset-btn" id="reset-btn">Reset Session</button>
   <div class="header-stats">
     <div class="stat-block">
       <div class="val" id="stat-players">0</div>
@@ -216,9 +234,18 @@
     updatedEl.textContent = "Last updated " + new Date().toLocaleTimeString();
   }
 
+  let _ws = null;
+
+  document.getElementById("reset-btn").addEventListener("click", () => {
+    if (!_ws || _ws.readyState !== WebSocket.OPEN) return;
+    if (!confirm("Reset all player balances? Everyone will need to buy in again.")) return;
+    _ws.send(JSON.stringify({ type: "host-reset" }));
+  });
+
   function connect() {
     const wsUrl = BACKEND_URL.replace(/^http/, "ws").replace(/\/?$/, "") + "/ws";
     const ws = new WebSocket(wsUrl);
+    _ws = ws;
 
     ws.addEventListener("open", () => {
       ws.send(JSON.stringify({ type: "host-join" }));
@@ -233,6 +260,8 @@
       if (msg.type === "leaderboard") {
         statusEl.textContent = "Connected";
         render(msg.players);
+      } else if (msg.type === "reset") {
+        render([]);
       } else if (msg.type === "error") {
         statusEl.textContent = "Server error: " + msg.error;
         statusEl.className = "status disconnected";

@@ -86,9 +86,10 @@ export class Table {
       return;
     }
 
-    if (msg.type === "join")      { await this.handleJoin(ws, msg);     return; }
-    if (msg.type === "host-join") { await this.handleHostJoin(ws);       return; }
-    if (msg.type === "spin")      { await this.handleWsSpin(ws, msg);    return; }
+    if (msg.type === "join")       { await this.handleJoin(ws, msg);     return; }
+    if (msg.type === "host-join")  { await this.handleHostJoin(ws);       return; }
+    if (msg.type === "host-reset") { await this.handleHostReset(ws);      return; }
+    if (msg.type === "spin")       { await this.handleWsSpin(ws, msg);    return; }
 
     ws.send(JSON.stringify({ type: "error", error: `unknown type: ${msg.type}` }));
   }
@@ -100,6 +101,23 @@ export class Table {
     ws.serializeAttachment({ isHost: true });
     const players = await this.getLeaderboard();
     ws.send(JSON.stringify({ type: "leaderboard", players }));
+  }
+
+  async handleHostReset(ws) {
+    if (!ws.deserializeAttachment()?.isHost) {
+      ws.send(JSON.stringify({ type: "error", error: "not authorized" }));
+      return;
+    }
+    // Wipe all player records.
+    const entries = await this.state.storage.list({ prefix: "player:" });
+    const keys = [...entries.keys()];
+    if (keys.length) await this.state.storage.delete(keys);
+
+    // Broadcast reset to every connected socket so active players reload.
+    const resetMsg = JSON.stringify({ type: "reset" });
+    for (const s of this.state.getWebSockets()) {
+      try { s.send(resetMsg); } catch {}
+    }
   }
 
   async getLeaderboard() {

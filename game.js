@@ -271,6 +271,16 @@ function connectBackend() {
       return;
     }
 
+    if (msg.type === "reset") {
+      // Host reset — clear saved identity so buy-in flow restarts on reload.
+      player.token = null;
+      player.displayName = null;
+      savePlayer(player);
+      localStorage.removeItem(STORAGE_KEY);
+      setTimeout(() => location.reload(), 400);
+      return;
+    }
+
     if (msg.type === "error" && _pendingSpins.length === 0) {
       console.error("[backend]", msg.error);
       return;
