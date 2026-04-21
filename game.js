@@ -904,6 +904,7 @@ async function performSpin() {
     bonus.spinsRemaining--;
   }
   state.lastWin = 0;
+  spinInProgress = true;
   updateUI();
   if (isFreeSpin) updateBonusIndicator();
 
@@ -935,8 +936,6 @@ async function performSpin() {
   }
   // Server already applies the free-spin multiplier; offline needs it applied here.
   const winAmount = isOnline ? baseResult.totalWin : baseResult.totalWin * multiplier;
-
-  spinInProgress = true;
   playSound("reelSpin");
   await animateReels(grid, isFreeSpin ? CONFIG.freeSpinReels : CONFIG.reels);
   stopSound("reelSpin");
