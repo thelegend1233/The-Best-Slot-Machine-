@@ -285,6 +285,7 @@ function promptDisplayName() {
 let _ws = null;
 let _wsReady = false;
 let _pendingJoin = null;
+let _pendingBuyIn = null;
 const _pendingSpins = []; // FIFO; safe because spins are sequential
 
 function connectBackend() {
@@ -309,7 +310,8 @@ function connectBackend() {
       showPlayerByline();
       if (msg.balance !== undefined) { state.balance = msg.balance; saveBalance(); updateUI(); }
       _wsReady = true;
-      if (_pendingJoin) { _pendingJoin.resolve(msg); _pendingJoin = null; }
+      if (_pendingJoin)  { _pendingJoin.resolve(msg);  _pendingJoin  = null; }
+      if (_pendingBuyIn) { _pendingBuyIn.resolve(msg); _pendingBuyIn = null; }
       console.log("[backend] joined as", msg.displayName, "balance:", msg.balance);
       return;
     }
@@ -324,9 +326,16 @@ function connectBackend() {
       return;
     }
 
-    if (msg.type === "error" && _pendingSpins.length === 0) {
-      console.error("[backend]", msg.error);
-      return;
+    if (msg.type === "error") {
+      if (_pendingBuyIn) {
+        _pendingBuyIn.reject(new Error(msg.error));
+        _pendingBuyIn = null;
+        return;
+      }
+      if (_pendingSpins.length === 0) {
+        console.error("[backend]", msg.error);
+        return;
+      }
     }
 
     if (_pendingSpins.length === 0) return;
@@ -338,7 +347,8 @@ function connectBackend() {
   socket.addEventListener("close", () => {
     _ws = null;
     _wsReady = false;
-    if (_pendingJoin) { _pendingJoin.reject(new Error("disconnected")); _pendingJoin = null; }
+    if (_pendingJoin)  { _pendingJoin.reject(new Error("disconnected"));  _pendingJoin  = null; }
+    if (_pendingBuyIn) { _pendingBuyIn.reject(new Error("disconnected")); _pendingBuyIn = null; }
     while (_pendingSpins.length) _pendingSpins.shift().reject(new Error("disconnected"));
     console.log("[backend] disconnected — retrying in 3s");
     setTimeout(connectBackend, 3000);
@@ -1418,15 +1428,28 @@ function endFreeSpins() {
 async function buyBackIn() {
   if (spinInProgress) return;
   const amount = await promptBuyIn();
-  state.balance = Math.round((state.balance + amount) * 100) / 100;
+  if (BACKEND_URL && _wsReady) {
+    // Server authoritative: wait for confirmation so local balance can't
+    // drift ahead of the server and get stomped by the next spin response.
+    try {
+      await new Promise((resolve, reject) => {
+        _pendingBuyIn = { resolve, reject };
+        _ws.send(JSON.stringify({ type: "buyin", buyIn: amount }));
+      });
+      // Balance was updated inside the "joined" handler.
+    } catch (err) {
+      _pendingBuyIn = null;
+      console.error("[backend] buy-in failed:", err.message);
+      alert("Buy back in failed: " + err.message + "\n(Make sure the backend is deployed.)");
+      return;
+    }
+  } else {
+    state.balance = Math.round((state.balance + amount) * 100) / 100;
+    saveBalance();
+  }
   state.lastWin = 0;
-  saveBalance();
   clearWinHighlights();
   updateUI();
-  if (BACKEND_URL && _wsReady) {
-    // Sync to server; "joined" response will reconcile balance if it differs.
-    _ws.send(JSON.stringify({ type: "buyin", buyIn: amount }));
-  }
 }
 
 // ---------- Wire-up ----------
