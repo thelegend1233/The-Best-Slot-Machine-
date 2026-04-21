@@ -96,11 +96,11 @@ const CONFIG = {
   paySymbols: ["leaf", "acorn", "mushroom", "rabbit", "fox", "deer", "bear", "wolf"],
   // Bonus round: 3+ scatters trigger two wheels in sequence. Wheel 1 locks
   // in the multiplier for the whole round; wheel 2 locks in the number of
-  // free spins. Free spins use freeSpinReels (3 wilds/reel), so the per-spin
-  // win during bonus is much higher than the base game. Wheels calibrated
-  // via runMonteCarlo() to land at ~94% total RTP.
+  // free spins. Free spins use freeSpinReels (3 wilds/reel) — empirically
+  // per-free-spin RTP is ~1.48× bet, so wheel product is set to ~15.6 to
+  // keep total RTP near 93-94%.
   //
-  // Multiplier wheel: ×2 (4/12), ×3 (4/12), ×4 (3/12), ×8 (1/12) → avg 3.33×
+  // Multiplier wheel: ×2 (5/12), ×3 (5/12), ×4 (1/12), ×5 (1/12) → avg 2.83×
   multiplierWheel: [
     { value:  2, color: "wheel-slice-a" },
     { value:  3, color: "wheel-slice-b" },
@@ -109,26 +109,26 @@ const CONFIG = {
     { value:  3, color: "wheel-slice-e" },
     { value:  2, color: "wheel-slice-a" },
     { value:  3, color: "wheel-slice-b" },
-    { value:  8, color: "wheel-slice-f" },
+    { value:  5, color: "wheel-slice-f" },
     { value:  2, color: "wheel-slice-c" },
-    { value:  4, color: "wheel-slice-e" },
-    { value:  3, color: "wheel-slice-d" },
-    { value:  4, color: "wheel-slice-b" },
+    { value:  3, color: "wheel-slice-e" },
+    { value:  2, color: "wheel-slice-d" },
+    { value:  3, color: "wheel-slice-b" },
   ],
-  // Free-spins wheel: 6 (4/12), 8 (4/12), 10 (3/12), 15 (1/12) → avg 8.42
+  // Free-spins wheel: 4 (3/12), 5 (5/12), 7 (3/12), 8 (1/12) → avg 5.5
   freeSpinsWheel: [
-    { value:  6, color: "wheel-slice-a" },
-    { value:  8, color: "wheel-slice-b" },
-    { value:  6, color: "wheel-slice-c" },
-    { value: 10, color: "wheel-slice-d" },
-    { value:  8, color: "wheel-slice-e" },
-    { value:  6, color: "wheel-slice-a" },
-    { value:  8, color: "wheel-slice-b" },
-    { value: 15, color: "wheel-slice-f" },
-    { value:  6, color: "wheel-slice-c" },
-    { value: 10, color: "wheel-slice-d" },
-    { value:  8, color: "wheel-slice-e" },
-    { value: 10, color: "wheel-slice-b" },
+    { value:  4, color: "wheel-slice-a" },
+    { value:  5, color: "wheel-slice-b" },
+    { value:  4, color: "wheel-slice-c" },
+    { value:  7, color: "wheel-slice-d" },
+    { value:  5, color: "wheel-slice-e" },
+    { value:  4, color: "wheel-slice-a" },
+    { value:  5, color: "wheel-slice-b" },
+    { value:  8, color: "wheel-slice-f" },
+    { value:  5, color: "wheel-slice-c" },
+    { value:  7, color: "wheel-slice-d" },
+    { value:  5, color: "wheel-slice-e" },
+    { value:  7, color: "wheel-slice-b" },
   ],
   // Free-spin reel strips — 3 wilds per reel (vs 1 on base reels).
   // Extra wilds replace leaf/acorn symbols spread across each strip.
