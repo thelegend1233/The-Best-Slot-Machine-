@@ -151,7 +151,6 @@ const CONFIG = {
 // Leave empty (or remove the value) to play fully offline.
 // Example: "https://norminton-casino.yourhandle.workers.dev"
 const BACKEND_URL = "https://norminton-casino.nicholas-1e8.workers.dev";
-const TABLE_CODE = new URLSearchParams(window.location.search).get("table");
 
 // ---------- Player identity ----------
 
@@ -209,8 +208,7 @@ const _pendingSpins = []; // FIFO; safe because spins are sequential
 
 function connectBackend() {
   if (!BACKEND_URL) return;
-  const wsPath = TABLE_CODE ? `/tables/${TABLE_CODE}/ws` : "/ws";
-  const wsUrl = BACKEND_URL.replace(/^http/, "ws").replace(/\/?$/, "") + wsPath;
+  const wsUrl = BACKEND_URL.replace(/^http/, "ws").replace(/\/?$/, "") + "/ws";
   const socket = new WebSocket(wsUrl);
 
   socket.addEventListener("open", () => {
@@ -1329,65 +1327,9 @@ function buyBackIn() {
   updateUI();
 }
 
-// ---------- Lobby ----------
-
-function initLobby() {
-  document.querySelector(".machine").hidden = true;
-  document.getElementById("lobby").hidden = false;
-
-  // Host panel only visible at ?host=1 — players see only the join form.
-  const isHost = new URLSearchParams(window.location.search).has("host");
-  document.getElementById("create-table-btn").closest("section").hidden = !isHost;
-  document.querySelector(".lobby-divider").hidden = !isHost;
-  document.getElementById("create-table-btn").addEventListener("click", createTable);
-  document.getElementById("join-table-btn").addEventListener("click", joinTable);
-  document.getElementById("join-code-input").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") joinTable();
-  });
-}
-
-async function createTable() {
-  const btn = document.getElementById("create-table-btn");
-  const errEl = document.getElementById("create-error");
-  const buyIn = Number(document.getElementById("buy-in-input").value);
-  errEl.hidden = true;
-  btn.disabled = true;
-  try {
-    const res = await fetch(`${BACKEND_URL}/tables`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ buyIn }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "server error");
-    window.location.search = `?table=${data.code}`;
-  } catch (err) {
-    errEl.textContent = err.message;
-    errEl.hidden = false;
-    btn.disabled = false;
-  }
-}
-
-function joinTable() {
-  const codeInput = document.getElementById("join-code-input");
-  const errEl = document.getElementById("join-error");
-  const code = codeInput.value.trim().toUpperCase();
-  if (code.length !== 4) {
-    errEl.textContent = "Enter a 4-letter table code.";
-    errEl.hidden = false;
-    return;
-  }
-  window.location.search = `?table=${code}`;
-}
-
 // ---------- Wire-up ----------
 
 document.addEventListener("DOMContentLoaded", () => {
-  if (BACKEND_URL && !TABLE_CODE) {
-    initLobby();
-    return;
-  }
-
   connectBackend();
   showPlayerByline();
   renderGrid(spinAllReels());

@@ -93,10 +93,11 @@ export class Table {
   async webSocketError(_ws) {}
 
   async handleJoin(ws, msg) {
-    const meta = await this.state.storage.get("table:meta");
+    let meta = await this.state.storage.get("table:meta");
     if (!meta) {
-      ws.send(JSON.stringify({ type: "error", error: "table not found" }));
-      return;
+      // Auto-create the permanent table on first join.
+      meta = { code: "default", hostToken: null, buyIn: 1000, status: "open", createdAt: Date.now() };
+      await this.state.storage.put("table:meta", meta);
     }
 
     const displayName = String(msg.displayName ?? "").trim().slice(0, MAX_NAME_LEN) || "Guest";
