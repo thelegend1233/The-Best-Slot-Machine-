@@ -178,6 +178,44 @@ function showPlayerByline() {
   el.hidden = false;
 }
 
+// Returns a Promise that resolves to the buy-in amount the player chose.
+function promptBuyIn() {
+  return new Promise((resolve) => {
+    const overlay    = document.getElementById("buyin-prompt");
+    const input      = document.getElementById("buyin-input");
+    const submitBtn  = document.getElementById("buyin-submit");
+    const optionBtns = document.querySelectorAll(".buyin-option");
+    overlay.hidden = false;
+
+    let selectedAmount = null;
+
+    optionBtns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        optionBtns.forEach((b) => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        selectedAmount = Number(btn.dataset.amount);
+        input.value = "";
+      });
+    });
+
+    input.addEventListener("input", () => {
+      optionBtns.forEach((b) => b.classList.remove("selected"));
+      selectedAmount = null;
+    });
+
+    function submit() {
+      const custom = Number(input.value);
+      const amount = selectedAmount || (custom > 0 ? custom : null);
+      if (!amount) return;
+      overlay.hidden = true;
+      resolve(amount);
+    }
+
+    submitBtn.addEventListener("click", submit, { once: true });
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+  });
+}
+
 // Returns a Promise that resolves to the display name the user entered.
 function promptDisplayName() {
   return new Promise((resolve) => {
@@ -262,10 +300,16 @@ async function sendJoin(socket) {
   if (!player.displayName) {
     player.displayName = await promptDisplayName();
   }
+  // New players pick their buy-in; returning players keep their server balance.
+  let buyIn;
+  if (!player.token) {
+    buyIn = await promptBuyIn();
+  }
   socket.send(JSON.stringify({
     type: "join",
     displayName: player.displayName,
     token: player.token || null,
+    buyIn,
   }));
 }
 

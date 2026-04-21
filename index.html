@@ -140,6 +140,27 @@
     </div>
   </div>
 
+  <!-- Buy-in prompt — shown after name entry for first-time players. -->
+  <div class="buyin-overlay" id="buyin-prompt" hidden>
+    <div class="buyin-card">
+      <div class="name-prompt-logo">N</div>
+      <h2 class="name-prompt-title">Choose Your Buy-In</h2>
+      <p class="name-prompt-sub">Select a preset or enter a custom amount</p>
+      <div class="buyin-options">
+        <button type="button" class="buyin-option" data-amount="20">$20</button>
+        <button type="button" class="buyin-option" data-amount="50">$50</button>
+        <button type="button" class="buyin-option" data-amount="100">$100</button>
+        <button type="button" class="buyin-option" data-amount="200">$200</button>
+      </div>
+      <div class="buyin-custom-wrap">
+        <span class="buyin-dollar">$</span>
+        <input type="number" id="buyin-input" class="buyin-input"
+               placeholder="Custom amount" min="1" step="1" autocomplete="off" />
+      </div>
+      <button type="button" id="buyin-submit" class="name-submit-btn">Join Table</button>
+    </div>
+  </div>
+
   <!-- Name prompt — shown on first load when no display name is saved. -->
   <div class="name-prompt-overlay" id="name-prompt" hidden>
     <div class="name-prompt-card">
@@ -159,6 +180,6 @@
     </div>
   </div>
 
-  <script src="game.js?v=27"></script>
+  <script src="game.js?v=28"></script>
 </body>
 </html>

@@ -142,7 +142,8 @@ export class Table {
 
     if (!playerData) {
       token = crypto.randomUUID();
-      playerData = { displayName, joinedAt: Date.now(), balance: meta.buyIn };
+      const startBalance = Number(msg.buyIn) > 0 ? Number(msg.buyIn) : meta.buyIn;
+      playerData = { displayName, joinedAt: Date.now(), balance: startBalance };
     } else {
       playerData.displayName = displayName;
     }

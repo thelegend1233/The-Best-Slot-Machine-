@@ -412,6 +412,113 @@ html, body {
 .name-submit-btn:hover { filter: brightness(1.1); }
 .name-submit-btn:active { transform: scale(0.97); }
 
+/* ---------- Buy-in prompt overlay ---------- */
+.buyin-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(6, 2, 4, 0.88);
+  backdrop-filter: blur(6px);
+  padding: 16px;
+}
+
+.buyin-overlay[hidden] { display: none; }
+
+.buyin-card {
+  width: 100%;
+  max-width: 380px;
+  background: linear-gradient(180deg, #1e0609 0%, #120305 100%);
+  border: 1.5px solid rgba(242, 197, 106, 0.35);
+  border-radius: 20px;
+  padding: 36px 32px 32px;
+  text-align: center;
+  box-shadow:
+    0 0 60px rgba(200, 16, 46, 0.25),
+    0 24px 64px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.buyin-options {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.buyin-option {
+  padding: 12px 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--accent);
+  background: rgba(242, 197, 106, 0.08);
+  border: 1.5px solid rgba(242, 197, 106, 0.25);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  font-family: inherit;
+}
+
+.buyin-option:hover {
+  background: rgba(242, 197, 106, 0.16);
+  border-color: rgba(242, 197, 106, 0.5);
+}
+
+.buyin-option.selected {
+  background: rgba(242, 197, 106, 0.22);
+  border-color: var(--accent);
+  color: var(--accent-soft);
+  box-shadow: 0 0 12px rgba(242, 197, 106, 0.3);
+}
+
+.buyin-option:active { transform: scale(0.95); }
+
+.buyin-custom-wrap {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1.5px solid rgba(242, 197, 106, 0.3);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.buyin-custom-wrap:focus-within {
+  border-color: rgba(242, 197, 106, 0.7);
+  box-shadow: 0 0 0 3px rgba(242, 197, 106, 0.12);
+}
+
+.buyin-dollar {
+  padding: 0 10px 0 14px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.buyin-input {
+  flex: 1;
+  padding: 12px 14px 12px 0;
+  font-size: 1rem;
+  font-family: inherit;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  outline: none;
+  text-align: left;
+  min-width: 0;
+}
+
+.buyin-input::placeholder { color: rgba(255, 244, 228, 0.3); }
+
+/* Hide browser number spinners */
+.buyin-input::-webkit-outer-spin-button,
+.buyin-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.buyin-input[type=number] { -moz-appearance: textfield; }
+
 /* Grid panel — crimson glass with gold filigree border */
 .grid {
   display: grid;
