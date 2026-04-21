@@ -93,6 +93,7 @@ export class Table {
     if (msg.type === "join")       { await this.handleJoin(ws, msg);     return; }
     if (msg.type === "host-join")  { await this.handleHostJoin(ws);       return; }
     if (msg.type === "host-reset") { await this.handleHostReset(ws);      return; }
+    if (msg.type === "buyin")      { await this.handleBuyIn(ws, msg);     return; }
     if (msg.type === "spin")       { await this.handleWsSpin(ws, msg);    return; }
 
     ws.send(JSON.stringify({ type: "error", error: `unknown type: ${msg.type}` }));
@@ -233,6 +234,36 @@ export class Table {
       buyIn: meta.buyIn,
       tableCode: meta.code,
     }));
+  }
+
+  // ── Buy back in ────────────────────────────────────────────────────────────
+
+  async handleBuyIn(ws, msg) {
+    const { token } = ws.deserializeAttachment() ?? {};
+    if (!token) { ws.send(JSON.stringify({ type: "error", error: "join first" })); return; }
+
+    const amount = Number(msg.buyIn);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      ws.send(JSON.stringify({ type: "error", error: "buyIn must be positive" }));
+      return;
+    }
+
+    const playerData = await this.state.storage.get(`player:${token}`);
+    if (!playerData) { ws.send(JSON.stringify({ type: "error", error: "player not found" })); return; }
+
+    playerData.balance = Math.round(amount * 100) / 100;
+    playerData.buyIn   = Math.round(((playerData.buyIn || 0) + amount) * 100) / 100;
+    await this.state.storage.put(`player:${token}`, playerData);
+
+    const key = atKey(playerData.displayName);
+    const at  = await this.state.storage.get(key);
+    if (at) {
+      at.allTimeBuyIn = Math.round(((at.allTimeBuyIn || 0) + amount) * 100) / 100;
+      await this.state.storage.put(key, at);
+    }
+
+    ws.send(JSON.stringify({ type: "joined", token, displayName: playerData.displayName, balance: playerData.balance }));
+    this.broadcastLeaderboard().catch(() => {});
   }
 
   // ── Spin ───────────────────────────────────────────────────────────────────

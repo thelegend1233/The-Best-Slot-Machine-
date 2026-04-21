@@ -1411,16 +1411,19 @@ function endFreeSpins() {
   console.log(`Bonus ended. Total won: ${formatCredits(totalWon)} credits.`);
 }
 
-// "Buy Back In" — top up the balance to the starting amount. Always available
-// per spec; no confirm dialog (the label is unambiguous and the action is
-// reversible by playing it back down).
-function buyBackIn() {
+async function buyBackIn() {
   if (spinInProgress) return;
-  state.balance = CONFIG.startingBalance;
+  const amount = await promptBuyIn();
   state.lastWin = 0;
-  saveBalance();
   clearWinHighlights();
-  updateUI();
+  if (BACKEND_URL && _wsReady) {
+    _ws.send(JSON.stringify({ type: "buyin", buyIn: amount }));
+    // Balance update arrives via the "joined" response handler.
+  } else {
+    state.balance = amount;
+    saveBalance();
+    updateUI();
+  }
 }
 
 // ---------- Wire-up ----------
