@@ -1413,15 +1413,14 @@ function endFreeSpins() {
 async function buyBackIn() {
   if (spinInProgress) return;
   const amount = await promptBuyIn();
+  state.balance = Math.round((state.balance + amount) * 100) / 100;
   state.lastWin = 0;
+  saveBalance();
   clearWinHighlights();
+  updateUI();
   if (BACKEND_URL && _wsReady) {
+    // Sync to server; "joined" response will reconcile balance if it differs.
     _ws.send(JSON.stringify({ type: "buyin", buyIn: amount }));
-    // Balance update arrives via the "joined" response handler.
-  } else {
-    state.balance = amount;
-    saveBalance();
-    updateUI();
   }
 }
 

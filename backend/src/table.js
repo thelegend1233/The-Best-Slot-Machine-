@@ -251,7 +251,7 @@ export class Table {
     const playerData = await this.state.storage.get(`player:${token}`);
     if (!playerData) { ws.send(JSON.stringify({ type: "error", error: "player not found" })); return; }
 
-    playerData.balance = Math.round(amount * 100) / 100;
+    playerData.balance = Math.round((playerData.balance + amount) * 100) / 100;
     playerData.buyIn   = Math.round(((playerData.buyIn || 0) + amount) * 100) / 100;
     await this.state.storage.put(`player:${token}`, playerData);
 
